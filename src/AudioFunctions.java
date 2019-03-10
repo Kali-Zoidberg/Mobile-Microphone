@@ -1,7 +1,4 @@
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
@@ -11,8 +8,6 @@ import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 
-import java.util.zip.Inflater;
-import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 
 import javax.sound.sampled.Line;
@@ -23,7 +18,6 @@ import javax.sound.sampled.UnsupportedAudioFileException;
 
 public class AudioFunctions {
 
-	private static Inflater decoder = new Inflater();
 	private static Deflater encoder = new Deflater();
 	
 	/**
@@ -131,6 +125,35 @@ public class AudioFunctions {
 	}
 	
 	
+	/*
+	 * Data rate = sampleRate * frameSize (in bytes) * numChannels
+	 * To get audio play time per message, numBytesInMessage/dataRate = time
+	 */
+	
+	/**
+	 * Returns the data rate of an audio format (bytes/second)
+	 * @param format The audio format to extract the data rate from
+	 * @return REturns the data rate of an audio format (bytes/second)
+	 */
+	
+	public static long getDataRate(AudioFormat format)
+	{
+		return (long) (format.getSampleRate() * (format.getSampleSizeInBits() / 8) * format.getChannels());
+	}
+	
+	
+	/**
+	 * Returns the audio playtime 
+	 * @param format The audio format to extract the audio play time from
+	 * @param bytesOfData The bytes of data that is given per write
+	 * @return Returns a float representing the number of seconds that the an audio of specified format and bytes of data will play.
+	 */
+	
+	public static float getAudioPlayTime(AudioFormat format, int bytesOfData)
+	{
+		return (float) bytesOfData / getDataRate(format);
+	}
+	
 	/**
 	 * Creates a hashtable of the mixer devices using the key as the name
 	 * @return Returns a hashtable with the key as the name and the mixer as the value
@@ -178,10 +201,7 @@ public class AudioFunctions {
 		int bytesRead = 0;
 		int numBytesRead = 0;
 		byte data[] = new byte[bytesPerRead];
-		byte buffer[] = new byte[bytesPerRead];
 
-		int num = 0;
-		long beforeTimeStamp = System.currentTimeMillis();
 		
 		while (bytesRead < maxReadSize)
 		{
@@ -215,6 +235,8 @@ public class AudioFunctions {
 		}
 		return true;
 	}
+	
+	
 	/**
 	 * Splits a string of data between some specified regex and converts each substring into a byte.
 	 * @param str The string to split

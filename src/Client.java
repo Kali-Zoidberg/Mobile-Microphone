@@ -2,11 +2,16 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.UnknownHostException;
 
 public class Client {
 	private Socket serverSocket = null;
+	private DatagramSocket udpSocket = null;
 	private int portNumber;
 	private String hostName;
 	private PrintWriter outputStream;
@@ -72,6 +77,53 @@ public class Client {
 		this.hostName = hostName;
 	}
 	
+	/**
+	 * Receives incoming bytes from a udp server.
+	 * @param buf The buffer to store the bytes in
+	 * @return Returns the packet's data
+	 * @throws IOException 
+	 */
+	
+	public byte[] recieveBytesFromUDP(byte[] buf) throws IOException
+	{
+		if (udpSocket != null)
+		{
+			DatagramPacket packet = new DatagramPacket(buf, buf.length);
+			udpSocket.receive(packet);
+			return packet.getData();
+		} else
+		{
+			return null;
+		}
+	}
+	
+	/**
+	 * Sends specified bytes to the udp server the client is connected to.
+	 * @param buffer The byte array to send to the server.
+	 * @throws IOException You should handle this exception yourself in case the bytes cannot be accepted.
+	 */
+	
+	public void sendBytesToUDP(byte[] buffer) throws IOException
+	{
+		if(udpSocket != null)
+		{
+			DatagramPacket packet = new DatagramPacket(buffer, buffer.length, this.serverSocket.getLocalAddress(), this.portNumber);
+			udpSocket.send(packet);
+		}
+	}
+	
+	
+	/**
+	 * Starts the udp socket on the server.
+	 * @throws SocketException 
+	 */
+	public void connectToUDPServer() throws SocketException
+	{
+		this.sendDataToServer("S.udp");
+		udpSocket = new DatagramSocket();
+	}
+	
+
 	
 	/**
 	 * Connects the client to the specified server

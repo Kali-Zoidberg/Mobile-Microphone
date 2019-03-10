@@ -8,6 +8,7 @@ public class AudioBuffer {
 	private SynchronousQueue<byte[]> byteBuffers;
 	private int curBufferIndex = 0;
 	byte[] curBuffer;
+	
 	AudioBuffer(int bufferSize, int maxNumOfBuffers)
 	{
 		this.setBufferSize(bufferSize);

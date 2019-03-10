@@ -10,6 +10,10 @@ import javax.sound.sampled.SourceDataLine;
 import javax.sound.sampled.UnsupportedAudioFileException;
 
 import java.io.*;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Hashtable;
 /**
@@ -28,14 +32,21 @@ public class Main {
 	{
 			//testByteStringConversion();
 		testClientServer();
+		//testAudioFiles();
 	}
 	
 	public static void testClientServer()
 	{
-		int port = 400;
-		
+		int port = 7000;
+		DatagramSocket socket = null;
+		try {
+			socket = new DatagramSocket();
+		} catch (SocketException e2) {
+			// TODO Auto-generated catch block
+			e2.printStackTrace();
+		}
 		Server server = new Server(port);
-		String filename = "darude.wav";
+		String filename = "sup.wav";
 		try {
 			System.out.println(server.getHostName());
 		} catch (UnknownHostException e) {
@@ -45,14 +56,17 @@ public class Main {
 		AudioInputStream testStream = null;
 		try {
 			testStream = AudioFunctions.createAudioInputStream(filename);
-
+			System.out.println(testStream.getFormat().toString());
+			System.out.println(AudioFunctions.getAudioPlayTime(testStream.getFormat(), 32768));
+			System.out.println("Audio data rate" + AudioFunctions.getDataRate(testStream.getFormat()));
+			//print frameRAte
 			cableInputLine = AudioSystem.getSourceDataLine(testStream.getFormat());
 			cableInputLine.open();
 			cableInputLine.start();
 			//AudioFunctions.writeFromStreamToLine(testStream, cableInputLine, 10, 1024, 1024);
-
+			
 			server.startServer();
-			/*
+			
 			Client client = new Client("0.0.0.0", port);
 			try {
 
@@ -61,39 +75,36 @@ public class Main {
 				client.sendDataToServer("UID.asdf");
 				Thread.sleep(2000);
 				System.out.println(client.readMessageFromSerer());
-				int bytesPerRead = 1024;
-				int maxReadSize = 1024;
+				int bytesPerRead = 8012;
+				int maxReadSize = 8012;
 				int bytesRead = 0;
 				int numBytesRead = 0;
 				byte data[] = new byte[bytesPerRead];
+				
 
-			
+				client.connectToUDPServer();
 				while (bytesRead < maxReadSize)
 				{
 					try {
-						
 						numBytesRead = testStream.read(data, 0, bytesPerRead);
+						
 						if (numBytesRead == -1) break;
 						bytesRead += bytesRead;
+						
+						long curTime = System.currentTimeMillis();
+						client.sendBytesToUDP(data);
+						Thread.sleep(100);
 
-						String strData = "";
-						for (int i = 0; i < data.length - 1; ++i)
-						{
-							strData += Byte.toString(data[i]) + " ";
-						
-						}
-						strData += Byte.toString(data[data.length - 1]);
-						
-						client.sendDataToServer("A." + strData);
-						
 					} catch (IOException e) {
 						// TODO Cleanup if needed.
 						e.printStackTrace();
 						
 					}
 				}
-				
+				data = "end".getBytes();
+				client.sendBytesToUDP(data);
 				System.out.println(client.readMessageFromSerer());
+
 				client.sendDataToServer("S.close");
 				System.out.println(client.readMessageFromSerer());
 			} catch (IOException e) {
@@ -102,7 +113,9 @@ public class Main {
 			} catch (Exception e)
 			{
 				server.closeServer();
-			}	*/
+				e.printStackTrace();
+				
+			}	
 		} catch (UnsupportedAudioFileException | IOException | LineUnavailableException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
@@ -137,12 +150,10 @@ public class Main {
 	
 	public static void testAudioFiles()
 	{
-		String filename = "missionimpossible.wav";
+		String filename = "finalcountdown.wav";
 		int bufferSize = 1024;
 		int port = 4000;
 		AudioInputStream testStream;
-		
-		
 	
 		try {
 			testStream = AudioFunctions.createAudioInputStream(filename);
@@ -150,8 +161,8 @@ public class Main {
 				
 				Hashtable<String, Mixer> audioMixerTable = AudioFunctions.createHashTableOfMixers();
 				Mixer cableinput = audioMixerTable.get("CABLE Input (VB-Audio Virtual Cable)");
- 				 cableInputLine = AudioFunctions.getLineFromDevice(testStream.getFormat(), cableinput.getMixerInfo());
- 				cableInputLine = AudioSystem.getSourceDataLine(testStream.getFormat());
+ 				cableInputLine = AudioFunctions.getLineFromDevice(testStream.getFormat(), cableinput.getMixerInfo());
+ 				//cableInputLine = AudioSystem.getSourceDataLine(testStream.getFormat());
  				//Audiosystem.getsource dataline allows specificaiton
  				cableInputLine.open();
 				AudioFunctions.writeFromStreamToLine(testStream, cableInputLine, 10, 1024, 1024);
