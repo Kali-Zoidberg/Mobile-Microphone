@@ -1,5 +1,6 @@
 
 
+import javax.media.MediaLocator;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.DataLine;
@@ -16,6 +17,7 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Hashtable;
+
 /**
  * Can use mixer info to get a clip to stream audio data too. clip extends dataline!
  * Okay next order of buisness,
@@ -23,18 +25,74 @@ import java.util.Hashtable;
  * @author nickj
  *
  */
-
+import javax.media.rtp.RTPSocket;
+import javax.media.rtp.RTPStream;
 public class Main {
 	
 	public static SourceDataLine cableInputLine;
-	
+	private static String hostname = "192.168.56.1";
+	private static String port = "6209";
+	private static String audioFile = "file:/C:/users/nickj/Documents/CS122b/mobilemic/sup.wav";
+	//private static String  audioFile = "javasound://0";
+
 	public static void main (String args[])
 	{
 			//testByteStringConversion();
-		testClientServer();
+		//testClientServer();
 		//testAudioFiles();
+
+		testRTPServer();
+		try {
+			Thread.sleep(100);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		System.out.println("hiya giya hgiya");
+		testRTPClient();
+		RTPSocket socket = new RTPSocket();
 	}
-	
+	public static void testRTPServer()
+	{
+		Thread run = new Thread() {
+			@Override
+			public void run() {
+				String[] listeners = {hostname + "/" + port, hostname + "/" + "6093"};
+				RTPServer rtpServer = new RTPServer(listeners);
+				if (!rtpServer.initialize())
+				{
+					System.err.println("Error intializing session.");
+					System.exit(-1);
+				}
+
+				try {
+					while (!rtpServer.isDone())
+						Thread.sleep(1000);
+				} catch (Exception e)
+				{
+					e.printStackTrace();
+				}
+			}
+		};
+		run.start();
+
+	}
+
+	public static void testRTPClient()
+	{
+		RTPClient client = new RTPClient(new MediaLocator(audioFile), "192.168.56.1", port);
+		System.out.println("Strating client....");
+		String result = client.start();
+		System.out.println("client result: " + result);
+
+		try {
+			Thread.currentThread().sleep(60000);
+		} catch (InterruptedException ie) {
+		}
+
+		// Stop the transmission
+		client.stop();
+		System.out.println("transmission ended...");
+	}
 	public static void testClientServer()
 	{
 		int port = 7000;
