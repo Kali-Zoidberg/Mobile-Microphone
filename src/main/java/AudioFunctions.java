@@ -1,7 +1,13 @@
+import Interpolation.Interpolation;
+import helper.ByteConversion;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.ArrayList;
 import java.util.Hashtable;
 
 import javax.sound.sampled.AudioFormat;
@@ -84,7 +90,6 @@ public class AudioFunctions {
 	
 	/**
 	 * Returns the names of all the audio devices
-	 * @param audioFormat
 	 * @return Returns a string listing the names of all the Audio Devices.
 	 */
 	
@@ -163,9 +168,10 @@ public class AudioFunctions {
 	{
 		Hashtable<String, Mixer> retHashTable = new Hashtable<String, Mixer>();
 		Mixer.Info[] mixerInfos = AudioSystem.getMixerInfo();
-		for (Mixer.Info info : mixerInfos)
+		for (Mixer.Info info : mixerInfos) {
+			System.out.println(info.getName());
 			retHashTable.put(info.getName(), AudioSystem.getMixer(info));
-
+		}
 		return retHashTable;
 		
 	}
@@ -189,6 +195,8 @@ public class AudioFunctions {
 	
 	public static boolean writeFromStreamToLine(InputStream inputStream, SourceDataLine outputLine, int readSize, int maxReadSize, int bytesPerRead)
 	{
+
+		int interpolationSize = 2;
 		FileWriter testFile = null;
 		try {
 			testFile = new FileWriter("testFile.txt");
@@ -198,26 +206,29 @@ public class AudioFunctions {
 		}
 
 		outputLine.start();
+		ArrayList<short[]> audioDataList = new ArrayList<>();
 		int bytesRead = 0;
 		int numBytesRead = 0;
-		byte data[] = new byte[bytesPerRead];
+		int testCounter = 0;
 
-		
+
+		byte data[] = new byte[bytesPerRead];
+		short[] startArray = null;
+		short[] endArray = null;
 		while (bytesRead < maxReadSize)
 		{
 			try {
-				
+				++testCounter;
 				numBytesRead = inputStream.read(data, 0, bytesPerRead);
 				if (numBytesRead == -1) break;
 				bytesRead += bytesRead;
-				outputLine.write(data, 0, numBytesRead);
-				for (int i = 0; i < data.length - 1; ++i)
-				{
-					testFile.write(data[i] + " ");
-				}
-				testFile.write(data[data.length - 1]);
-				System.out.println("numBytesREad" + numBytesRead);
-				
+
+				if (testCounter % interpolationSize == 0)
+					audioDataList.add(ByteConversion.byteArrayToShortArray(data, true));
+				//outputLine.write(data, 0, numBytesRead);
+
+				//testFile.write(data[data.length - 1] + "\n");
+
 			} catch (IOException e) {
 				// TODO Cleanup if needed.
 				e.printStackTrace();
@@ -227,6 +238,43 @@ public class AudioFunctions {
 			
 		}
 
+
+
+		ArrayList<byte[]> audioBytes = new ArrayList<>();
+		//This won't play the last line of shorts.
+
+
+		//Write the interpolated bytes to a temporary array.
+		for (int i = 0; i < audioDataList.size() - 1; ++i)
+		{
+			byte[] shortToByte = ByteConversion.shortArrayToByteArray(audioDataList.get(i));
+			short[][] interpolatedShorts = Interpolation.linearInterpolation(audioDataList.get(i), audioDataList.get(i + 1), interpolationSize - 1);
+			audioBytes.add(shortToByte);
+			//outputLine.write(ByteConversion.shortArrayToByteArray(audioDataList.get(i)), 0, shortToByte.length);
+			try {
+				testFile.write(shortToByte[shortToByte.length - 1] + "\n");
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			for (int j = 0; j < interpolationSize - 1; ++ j)
+			{
+				//convert the interpolated bytes.
+				shortToByte = ByteConversion.shortArrayToByteArray(interpolatedShorts[j]);
+				try {
+					testFile.write(shortToByte[shortToByte.length - 1] + "\n");
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				audioBytes.add(shortToByte);
+			//	outputLine.write(shortToByte, 0, shortToByte.length);
+			}
+
+		}
+
+		for (int i = 0; i < audioBytes.size(); ++i)
+		{
+			outputLine.write(audioBytes.get(i), 0, audioBytes.get(i).length);
+		}
 		try {
 			testFile.close();
 		} catch (IOException e) {

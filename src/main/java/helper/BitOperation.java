@@ -1,4 +1,4 @@
-package com.example.mobilemic.helper;
+package helper;
 
 public class BitOperation {
     /**
@@ -44,7 +44,7 @@ public class BitOperation {
     public static byte[] copyBytesIntoArray(byte[] byteArr, int offset, int num)
     {
         byte[] intBytes = split(num, 4);
-        for (int i = offset; i < 4; ++i)
+        for (int i = offset; i < offset + 4; ++i)
         {
             byteArr[i] = intBytes[i - offset];
         }

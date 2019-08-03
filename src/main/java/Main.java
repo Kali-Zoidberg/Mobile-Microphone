@@ -1,6 +1,12 @@
 
 
+import rtp.RtpPacket;
+
+import javax.media.CaptureDeviceManager;
 import javax.media.MediaLocator;
+import javax.media.format.AudioFormat;
+import javax.media.protocol.CaptureDevice;
+import javax.media.rtp.SessionManager;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.DataLine;
@@ -17,6 +23,7 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Hashtable;
+import java.util.Vector;
 
 /**
  * Can use mixer info to get a clip to stream audio data too. clip extends dataline!
@@ -30,17 +37,36 @@ import javax.media.rtp.RTPStream;
 public class Main {
 	
 	public static SourceDataLine cableInputLine;
-	private static String hostname = "192.168.56.1";
-	private static String port = "6209";
-	private static String audioFile = "file:/C:/users/nickj/Documents/CS122b/mobilemic/sup.wav";
+	private static String hostname = "0.0.0.0";
+	private static String port = "9000";
+	private static String audioFile = "rtp://0.0.0.0:" + port + "/audio";
 	//private static String  audioFile = "javasound://0";
 
 	public static void main (String args[])
 	{
+		testAudioFiles();
+		/*
+		try {
+			CaptureDeviceManager.commit();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		Vector devices = CaptureDeviceManager.getDeviceList(null);
+
+		System.out.println("Printing names of devices of :"  + devices.size() + " devices");
+		for (Object device: devices)
+		{
+			System.out.println("Hiya");
+			CaptureDevice convDevice = (CaptureDevice) device;
+			System.out.println(convDevice.getCaptureDeviceInfo().getName());
+		}
+*/
+		//testPacketHeader();
 			//testByteStringConversion();
 		//testClientServer();
 		//testAudioFiles();
 
+		/*
 		testRTPServer();
 		try {
 			Thread.sleep(100);
@@ -50,13 +76,108 @@ public class Main {
 		System.out.println("hiya giya hgiya");
 		testRTPClient();
 		RTPSocket socket = new RTPSocket();
+*/
+		/*
+		try {
+			testUDPServer();
+		} catch (LineUnavailableException e) {
+			e.printStackTrace();
+		}
+		*/
 	}
+
+	public static void testUDPServer() throws LineUnavailableException {
+		int udpPort = 6914;
+		String filename = "sup.wav";
+
+		AudioInputStream testStream = null;
+		try {
+			testStream = AudioFunctions.createAudioInputStream(filename);
+		} catch (UnsupportedAudioFileException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		cableInputLine = AudioSystem.getSourceDataLine(testStream.getFormat());
+		cableInputLine.open();
+		cableInputLine.start();
+
+		System.out.println("Starting udp server...");
+		Server server = new Server(6915);
+		try {
+			server.setupUDP(udpPort);
+
+			System.out.println("UDP open on port: " + udpPort);
+		} catch (SocketException e) {
+			e.printStackTrace();
+		}
+		server.startServer();
+
+	}
+
+	@SuppressWarnings("Duplicates")
+	public static void testPacketHeader()
+	{
+		String filename = "sup.wav";
+		int payloadType = 17; // dvi4
+		int seqNum = 0;
+		AudioInputStream testStream = null;
+		try {
+			testStream = AudioFunctions.createAudioInputStream(filename);
+			System.out.println(testStream.getFormat().toString());
+			System.out.println(AudioFunctions.getAudioPlayTime(testStream.getFormat(), 32768));
+			System.out.println("Audio data rate" + AudioFunctions.getDataRate(testStream.getFormat()));
+			//print frameRAte
+			cableInputLine = AudioSystem.getSourceDataLine(testStream.getFormat());
+			cableInputLine.open();
+			cableInputLine.start();
+
+			try {
+				//noinspection Duplicates
+				int bytesPerRead = 8012;
+				int maxReadSize = 8012;
+				int bytesRead = 0;
+				int numBytesRead = 0;
+				byte data[] = new byte[bytesPerRead];
+
+
+				while (bytesRead < maxReadSize) {
+					try {
+						numBytesRead = testStream.read(data, 0, bytesPerRead);
+
+						if (numBytesRead == -1) break;
+						bytesRead += bytesRead;
+						RtpPacket packet = new RtpPacket(payloadType, seqNum, (int) System.currentTimeMillis(), data);
+						packet.printHeader();
+						long curTime = System.currentTimeMillis();
+						Thread.sleep(100);
+
+					} catch (IOException e) {
+						// TODO Cleanup if needed.
+						e.printStackTrace();
+
+					}
+					seqNum++;
+				}
+
+			} catch (Exception e)
+			{
+				e.printStackTrace();
+			}
+
+			} catch (UnsupportedAudioFileException | IOException | LineUnavailableException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+		}
 	public static void testRTPServer()
 	{
 		Thread run = new Thread() {
 			@Override
 			public void run() {
-				String[] listeners = {hostname + "/" + port, hostname + "/" + "6093"};
+				String[] listeners = {hostname + "/" + port, hostname +"/" + (Integer.parseInt(port) + 10)};
+
 				RTPServer rtpServer = new RTPServer(listeners);
 				if (!rtpServer.initialize())
 				{
@@ -79,7 +200,7 @@ public class Main {
 
 	public static void testRTPClient()
 	{
-		RTPClient client = new RTPClient(new MediaLocator(audioFile), "192.168.56.1", port);
+		RTPClient client = new RTPClient(new MediaLocator(audioFile), "0.0.0.0", port);
 		System.out.println("Strating client....");
 		String result = client.start();
 		System.out.println("client result: " + result);
@@ -150,6 +271,7 @@ public class Main {
 						bytesRead += bytesRead;
 						
 						long curTime = System.currentTimeMillis();
+
 						client.sendBytesToUDP(data);
 						Thread.sleep(100);
 
@@ -218,8 +340,9 @@ public class Main {
 			try {
 				
 				Hashtable<String, Mixer> audioMixerTable = AudioFunctions.createHashTableOfMixers();
-				Mixer cableinput = audioMixerTable.get("CABLE Input (VB-Audio Virtual Cable)");
+				Mixer cableinput = audioMixerTable.get("Headset Earphone (Corsair VOID PRO USB Gaming Headset )");
  				cableInputLine = AudioFunctions.getLineFromDevice(testStream.getFormat(), cableinput.getMixerInfo());
+ 				System.out.println(testStream.getFormat().toString());
  				//cableInputLine = AudioSystem.getSourceDataLine(testStream.getFormat());
  				//Audiosystem.getsource dataline allows specificaiton
  				cableInputLine.open();

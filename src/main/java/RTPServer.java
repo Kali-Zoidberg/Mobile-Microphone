@@ -35,12 +35,18 @@ import java.awt.event.*;
 import java.util.Vector;
 
 import javax.media.*;
-import javax.media.rtp.*;
+
+import com.sun.media.rtp.RTPControlImpl;
+import com.sun.media.rtp.RTPSessionMgr;
+
+
+import javax.media.rtp.ReceiveStream;
+import javax.media.rtp.ReceiveStreamListener;
+import javax.media.rtp.SessionAddress;
+import javax.media.rtp.SessionListener;
 import javax.media.rtp.event.*;
-import javax.media.rtp.rtcp.*;
-import javax.media.protocol.*;
-import javax.media.protocol.DataSource;
-import javax.media.format.AudioFormat;
+
+import com.sun.media.protocol.DataSource;
 import javax.media.format.VideoFormat;
 import javax.media.Format;
 import javax.media.format.FormatChangeEvent;
@@ -54,7 +60,7 @@ public class RTPServer implements ReceiveStreamListener, SessionListener,
         ControllerListener
 {
     String sessions[] = null;
-    RTPManager mgrs[] = null;
+    RTPSessionMgr mgrs[] = null;
     Vector playerWindows = null;
 
     boolean dataReceived = false;
@@ -72,7 +78,7 @@ public class RTPServer implements ReceiveStreamListener, SessionListener,
             SessionAddress localAddr = new SessionAddress();
             SessionAddress destAddr;
 
-            mgrs = new RTPManager[sessions.length];
+            mgrs = new RTPSessionMgr[sessions.length];
             playerWindows = new Vector();
 
             SessionLabel session;
@@ -90,7 +96,7 @@ public class RTPServer implements ReceiveStreamListener, SessionListener,
 
                 System.err.println("  - Open RTP session for: addr: " + session.addr + " port: " + session.port + " ttl: " + session.ttl);
 
-                mgrs[i] = (RTPManager) RTPManager.newInstance();
+                mgrs[i] = (RTPSessionMgr) RTPSessionMgr.newInstance();
                 mgrs[i].addSessionListener(this);
                 mgrs[i].addReceiveStreamListener(this);
 
@@ -122,19 +128,19 @@ public class RTPServer implements ReceiveStreamListener, SessionListener,
             }
 
         } catch (Exception e){
-            System.err.println("Cannot create the RTP Session: " + e.getMessage());
+            e.printStackTrace();
+            System.err.println("Cannotasdfasdfasdfasdfasdf create the RTP Session: " + e.getMessage());
             return false;
         }
 
         // Wait for data to arrive before moving on.
 
         long then = System.currentTimeMillis();
-        long waitingPeriod = 30000;  // wait for a maximum of 30 secs.
+        long waitingPeriod = 300000;  // wait for a maximum of 30 secs.
 
         try{
             synchronized (dataSync) {
-                while (!dataReceived &&
-                        System.currentTimeMillis() - then < waitingPeriod) {
+                while (!dataReceived) {
                     if (!dataReceived)
                         System.err.println("  - Waiting for RTP data to arrive...");
                     dataSync.wait(1000);
@@ -194,6 +200,7 @@ public class RTPServer implements ReceiveStreamListener, SessionListener,
     PlayerWindow find(ReceiveStream strm) {
         for (int i = 0; i < playerWindows.size(); i++) {
             PlayerWindow pw = (PlayerWindow)playerWindows.elementAt(i);
+
             if (pw.stream == strm)
                 return pw;
         }
@@ -206,8 +213,6 @@ public class RTPServer implements ReceiveStreamListener, SessionListener,
      */
     public synchronized void update(SessionEvent evt) {
         if (evt instanceof NewParticipantEvent) {
-            Participant p = ((NewParticipantEvent)evt).getParticipant();
-            System.err.println("  - A new participant had just joined: " + p.getCNAME());
         }
     }
 
@@ -216,9 +221,8 @@ public class RTPServer implements ReceiveStreamListener, SessionListener,
      * ReceiveStreamListener
      */
     public synchronized void update( ReceiveStreamEvent evt) {
-
-        RTPManager mgr = (RTPManager)evt.getSource();
-        Participant participant = evt.getParticipant();	// could be null.
+        System.out.println("Hiya receive stream ervent update function");
+        RTPSessionMgr mgr = (RTPSessionMgr)evt.getSource();
         ReceiveStream stream = evt.getReceiveStream();  // could be null.
 
         if (evt instanceof RemotePayloadChangeEvent) {
@@ -233,20 +237,16 @@ public class RTPServer implements ReceiveStreamListener, SessionListener,
 
             try {
                 stream = ((NewReceiveStreamEvent)evt).getReceiveStream();
-                DataSource ds = stream.getDataSource();
-
+                DataSource ds = (DataSource) stream.getDataSource();
+                System.out.println("Stream from data source:" + ds.getStreams()[0].toString());
                 // Find out the formats.
-                RTPControl ctl = (RTPControl)ds.getControl("javax.media.rtp.RTPControl");
+                RTPControlImpl ctl = (RTPControlImpl)ds.getControl("javax.media.rtp.RTPControl");
                 if (ctl != null){
                     System.err.println("  - Recevied new RTP stream: " + ctl.getFormat());
                 } else
                     System.err.println("  - Recevied new RTP stream");
 
-                if (participant == null)
-                    System.err.println("      The sender of this stream had yet to be identified.");
-                else {
-                    System.err.println("      The stream comes from: " + participant.getCNAME());
-                }
+
 
                 // create a player by passing datasource to the Media Manager
                 Player p = javax.media.Manager.createPlayer(ds);
@@ -274,19 +274,17 @@ public class RTPServer implements ReceiveStreamListener, SessionListener,
         else if (evt instanceof StreamMappedEvent) {
 
             if (stream != null && stream.getDataSource() != null) {
-                DataSource ds = stream.getDataSource();
+                DataSource ds = (DataSource) stream.getDataSource();
                 // Find out the formats.
-                RTPControl ctl = (RTPControl)ds.getControl("javax.media.rtp.RTPControl");
+                RTPControlImpl ctl = (RTPControlImpl)ds.getControl("javax.media.rtp.RTPControl");
                 System.err.println("  - The previously unidentified stream ");
                 if (ctl != null)
                     System.err.println("      " + ctl.getFormat());
-                System.err.println("      had now been identified as sent by: " + participant.getCNAME());
             }
         }
 
         else if (evt instanceof ByeEvent) {
 
-            System.err.println("  - Got \"bye\" from: " + participant.getCNAME());
             PlayerWindow pw = find(stream);
             if (pw != null) {
                 pw.close();
@@ -331,6 +329,7 @@ public class RTPServer implements ReceiveStreamListener, SessionListener,
         }
 
     }
+
 
 
     /**

@@ -18,8 +18,7 @@ public class AudioBuffer {
 	}
 	
 	/**
-	 * Fills data in the buffer chain. If one buffer runs out of room, another one
-	 * is added to the queue and the data is sent to that buffer.
+	 * Fills data in the buffer chain. If one buffer runs out of room, another one is added to the queue and the data is sent to that buffer.
 	 * @param data The byte array containing the data you wish to fill.
 	 * @return If the maximum number of buffers has been hit, -1 is returned. If all goes well, 0 is returned.
 	 * @throws InterruptedException

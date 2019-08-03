@@ -199,22 +199,21 @@ public class Server {
 		//AcceptThread acceptClients = new AcceptThread();
 		//acceptClients.start();
 			try {
-				
-				clientSocket = serverSocket.accept();
-				clientOutputStream = new PrintWriter(clientSocket.getOutputStream(), true);
-	            clientInputStream = new BufferedReader( new InputStreamReader(clientSocket.getInputStream()));
-				
+//				clientSocket = serverSocket.accept();
+//				clientOutputStream = new PrintWriter(clientSocket.getOutputStream(), true);
+//	            clientInputStream = new BufferedReader( new InputStreamReader(clientSocket.getInputStream()));
+
 				while(isRunning)
 		    	{
 					 try {
-		    		serverTick(clientSocket, clientOutputStream, clientInputStream);
+					 	serverTick(clientSocket, clientOutputStream, clientInputStream);
 					 } catch (java.net.SocketException e)
 					 {
 					 	System.out.println("Client closed connection. Ending server");
 					 		this.closeServer();
 					 }
 				}
-			} catch (IOException e1) {
+			} catch (Exception e1) {
 				// TODO Auto-generated catch block
 				e1.printStackTrace();
 			}
@@ -271,7 +270,6 @@ public class Server {
 	 * Analyze's a command set by a user.
 	 * Valid commands are:
 	 * @param line
-	 * @param socket
 	 * @param outputStream
 	 * @return
 	 */
@@ -501,7 +499,7 @@ public class Server {
 		//try {
 	
 	//	Set<String> names = clientTable.keySet();
-		String curLine = "";
+		String curLine = null;
 	//		for (String name : names)
 	//		{
 				//System.out.println("Checking clients");
@@ -509,16 +507,18 @@ public class Server {
 			//	Socket curSocket = clientTable.get(name);
 			//	PrintWriter curOutputStream = clientOutputStreams.get(name);
 			//	BufferedReader curInputStream = clientInputStreams.get(name);
-				if (clientInputStream != null && clientOutputStream != null && !clientSocket.isClosed())
+				//if (clientInputStream != null && clientOutputStream != null && !clientSocket.isClosed())
+				if (true)
 				{
 					try {
-						//System.out.println("*****Waiting to Read line from User*******");
+						System.out.println("*****Waiting to Read line from User*******");
 						try {
 							if(UDPRunning)
 							{
 								byte buf[] = new byte[bufferSize];
 								DatagramPacket somePacket = new DatagramPacket(buf, buf.length);
 								dataSocket.receive(somePacket);
+								System.out.println("recieved packet from ");
 								analyzeUDPCommand(buf, somePacket);
 							} else
 								curLine = clientInputStream.readLine();
@@ -528,7 +528,9 @@ public class Server {
 							
 						}
 					//	System.out.println("*******Message from user: " + curLine + " ***************");
-						analyzeCommand(curLine, clientOutputStream);
+						if (curLine != null)
+							analyzeCommand(curLine, clientOutputStream);
+
 					} catch (IOException e) {
 						// TODO Auto-generated catch block
 						System.out.println("*********Client closed connection. Closing server.***********");
