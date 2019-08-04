@@ -3,6 +3,8 @@ package Interpolation;
 public class Interpolation {
 
 
+
+
     /**
      * Source: http://paulbourke.net/miscellaneous/interpolation/
      * Code by

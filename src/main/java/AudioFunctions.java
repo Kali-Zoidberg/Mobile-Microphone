@@ -197,7 +197,7 @@ public class AudioFunctions {
 	public static boolean writeFromStreamToLine(InputStream inputStream, SourceDataLine outputLine, int readSize, int maxReadSize, int bytesPerRead)
 	{
 
-		int interpolationSize = 2;
+		int interpolationSize = 3;
 		FileWriter testFile = null;
 		try {
 			testFile = new FileWriter("testFile.txt");

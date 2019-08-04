@@ -330,7 +330,7 @@ public class Main {
 	
 	public static void testAudioFiles()
 	{
-		String filename = "finalcountdown.wav";
+		String filename = "darude.wav";
 		int bufferSize = 1024;
 		int port = 4000;
 		AudioInputStream testStream;
