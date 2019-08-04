@@ -3,7 +3,8 @@ The intention of this software is to enable users to utilize their mobile phone 
 </br>
 </br>
 ****Important Notice****</br>
-I am considering creating a web application instead of apps for each application.
+I am considering creating a web application instead of apps for each application.</br>
+</br>
 **Windows Progress**
   - Backend 60%
     - Batch scripts need to be written.
