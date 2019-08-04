@@ -14,6 +14,7 @@ import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 
+import java.util.LinkedList;
 import java.util.zip.Deflater;
 
 import javax.sound.sampled.Line;
@@ -206,6 +207,7 @@ public class AudioFunctions {
 		}
 
 		outputLine.start();
+
 		ArrayList<short[]> audioDataList = new ArrayList<>();
 		int bytesRead = 0;
 		int numBytesRead = 0;
@@ -238,6 +240,17 @@ public class AudioFunctions {
 			
 		}
 
+		/*
+		for (int i = 0; i < audioDataList.size(); ++i) {
+			try {
+				for (int j = 0; j < audioDataList.get(i).length; ++j)
+					testFile.write(audioDataList.get(i)[j] + " ");
+				testFile.write("\n");
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		*/
 
 
 		ArrayList<byte[]> audioBytes = new ArrayList<>();
@@ -247,33 +260,20 @@ public class AudioFunctions {
 		//Write the interpolated bytes to a temporary array.
 		for (int i = 0; i < audioDataList.size() - 1; ++i)
 		{
-			byte[] shortToByte = ByteConversion.shortArrayToByteArray(audioDataList.get(i));
-			short[][] interpolatedShorts = Interpolation.linearInterpolation(audioDataList.get(i), audioDataList.get(i + 1), interpolationSize - 1);
+			byte[] shortToByte = ByteConversion.shortArrayToByteArray(audioDataList.get(i), true);
+			short[][] interpolatedShorts = Interpolation.interpolate(audioDataList.get(i), audioDataList.get(i + 1), interpolationSize - 1);
 			audioBytes.add(shortToByte);
 			//outputLine.write(ByteConversion.shortArrayToByteArray(audioDataList.get(i)), 0, shortToByte.length);
-			try {
-				testFile.write(shortToByte[shortToByte.length - 1] + "\n");
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+
 			for (int j = 0; j < interpolationSize - 1; ++ j)
 			{
 				//convert the interpolated bytes.
-				shortToByte = ByteConversion.shortArrayToByteArray(interpolatedShorts[j]);
-				try {
-					testFile.write(shortToByte[shortToByte.length - 1] + "\n");
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
+				shortToByte = ByteConversion.shortArrayToByteArray(interpolatedShorts[j], true);
+
 				audioBytes.add(shortToByte);
 			//	outputLine.write(shortToByte, 0, shortToByte.length);
 			}
 
-		}
-
-		for (int i = 0; i < audioBytes.size(); ++i)
-		{
-			outputLine.write(audioBytes.get(i), 0, audioBytes.get(i).length);
 		}
 		try {
 			testFile.close();
@@ -281,6 +281,12 @@ public class AudioFunctions {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		for (int i = 0; i < audioBytes.size(); ++i)
+		{
+			outputLine.write(audioBytes.get(i), 0, audioBytes.get(i).length);
+		}
+
+		System.out.println("done");
 		return true;
 	}
 	

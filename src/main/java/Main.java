@@ -346,7 +346,7 @@ public class Main {
  				//cableInputLine = AudioSystem.getSourceDataLine(testStream.getFormat());
  				//Audiosystem.getsource dataline allows specificaiton
  				cableInputLine.open();
-				AudioFunctions.writeFromStreamToLine(testStream, cableInputLine, 10, 1024, 1024);
+				AudioFunctions.writeFromStreamToLine(testStream, cableInputLine, 1, 4, 4);
 				
 				
 			} catch (LineUnavailableException e) {

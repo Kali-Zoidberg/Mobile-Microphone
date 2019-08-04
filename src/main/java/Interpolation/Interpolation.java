@@ -3,9 +3,57 @@ package Interpolation;
 public class Interpolation {
 
 
-    private static final short MAX_SHORT = 32_767;
-    private static final short MIN_SHORT = -32_768;
+    /**
+     * Source: http://paulbourke.net/miscellaneous/interpolation/
+     * Code by
+     * @param a
+     * @param b
+     * @param mu
+     * @return
+     */
+    private static double cosineInterpolate(double a, double b, double mu)
+    {
+        double mu2 = (1 - Math.cos(mu * Math.PI))/2;
+        return (a * (1- mu2) + b *mu2);
+    }
 
+
+    @SuppressWarnings("Duplicates")
+    public static short[][] interpolate(short[] a, short[] b, int delta) {
+        //Determine the max size of the columns.
+        int cols = a.length > b.length ? a.length : b.length;
+        float ratio = 1;
+        double aAverage = calcAverage(a);
+        double bAverage = calcAverage(b);
+
+        boolean isASmaller = aAverage < bAverage ? true: false;
+
+        short[][] interpolShorts = new short[delta][cols];
+
+        for (int i = 0; i < delta; ++i) {
+            ratio = (i + 1) / (float) (delta + 1);
+
+            //This equation calculates the average amount we need to add to each short in the array.
+            double interpolAmount = ((bAverage - aAverage) * ratio);
+            //double interpolAmount = cosineInterpolate(aAverage, bAverage, ratio);
+            for (int j = 0; j < a.length; ++j) {
+
+                //add a[j] to the interpolated amount to reach the new average.
+                //short offset = isASmaller ? a[j] : b[j];
+                short offset = a[j];
+                interpolShorts[i][j] = (short) ((offset + interpolAmount));
+                //interpolShorts[i][j] = (short) interpolAmount;
+
+            }
+                //interpolShorts[i][j] = (short) (a[j] + ((b[j] - a[j])/2));
+            //test interpolation equation
+
+        }
+
+
+
+        return interpolShorts;
+    }
     /**
      * Linear interpolates an array of shorts
      * @param a     The starting array
@@ -32,6 +80,9 @@ public class Interpolation {
             for (int j = 0; j < a.length; ++j)
                 //add a[j] to the interpolated amount to reach the new average.
                 interpolShorts[i][j] = (short) ((a[j] + interpolAmount));
+                //interpolShorts[i][j] = (short) (a[j] + ((b[j] - a[j])/2));
+            //test interpolation equation
+
         }
 
         if (isASmaller)

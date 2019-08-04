@@ -37,7 +37,7 @@ public class ByteConversion {
      * @return
      */
 
-    public static byte[] shortArrayToByteArray(short[] sArray)
+    public static byte[] shortArrayToByteArray(short[] sArray, boolean isLittleEndian)
     {
         int sLen = sArray.length;
         byte[] retBytes = new byte[sLen * 2];
@@ -45,7 +45,7 @@ public class ByteConversion {
         int j = 0;
         for (int i = 0; i < sLen; ++i)
         {
-            byteBuffer.order(ByteOrder.LITTLE_ENDIAN);
+            byteBuffer.order(isLittleEndian ? ByteOrder.LITTLE_ENDIAN : ByteOrder.BIG_ENDIAN);
             byte[] shortBytes = byteBuffer.putShort(sArray[i]).array();
             retBytes[j] = shortBytes[0];
             retBytes[j+1] = shortBytes[1];
@@ -60,7 +60,7 @@ public class ByteConversion {
     {
         short[] shortArr = byteArrayToShortArray(b, true);
 
-        byte[] shortArrToB = shortArrayToByteArray(shortArr);
+        byte[] shortArrToB = shortArrayToByteArray(shortArr, true);
 
         //Test the length of the short array to byte.
         if (shortArrToB.length != b.length)
