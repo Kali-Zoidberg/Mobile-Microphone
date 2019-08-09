@@ -124,7 +124,7 @@ public class RtpPacket {
         pCC = 0;
         pMarker = 0;
         pSsrc = 0;
-        packet = new byte[HEADER_SIZE + packet_size];
+        this.packet = packet;
         //check if total packet size is lower than the header size
         if (packet_size >= HEADER_SIZE)
         {
@@ -157,6 +157,11 @@ public class RtpPacket {
         return(payload_size);
     }
 
+
+    public byte[] getPayload()
+    {
+        return payload;
+    }
     /**
      * Returns the length of the payload
      * @return

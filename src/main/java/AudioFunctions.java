@@ -227,7 +227,7 @@ public class AudioFunctions {
 
 				if (testCounter % interpolationSize == 0)
 					audioDataList.add(ByteConversion.byteArrayToShortArray(data, true));
-				//outputLine.write(data, 0, numBytesRead);
+					//outputLine.write(data, 0, numBytesRead);
 
 				//testFile.write(data[data.length - 1] + "\n");
 

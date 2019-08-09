@@ -1,3 +1,5 @@
+import rtp.RtpPacket;
+
 import java.io.BufferedReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -43,7 +45,7 @@ public class Server {
 	private LinkedList<Tuple<String, Socket>> clientSocketQueue = new LinkedList<Tuple<String, Socket>>();
 	private LinkedList<Tuple<String, BufferedReader>> clientInputQueue =  new LinkedList<Tuple<String, BufferedReader>>();
 	private LinkedList<Tuple<String, PrintWriter>> clientOutputQueue =  new LinkedList<Tuple<String, PrintWriter>>();
-	private int bufferSize = 8012;
+	private int bufferSize = 64;
 	private AudioPlayThread audioPlayThread;
 	private ArrayList<byte[]> audioBuffers = new ArrayList<byte[]>(); 
 	private boolean UDPRunning = false;
@@ -199,9 +201,9 @@ public class Server {
 		//AcceptThread acceptClients = new AcceptThread();
 		//acceptClients.start();
 			try {
-//				clientSocket = serverSocket.accept();
-//				clientOutputStream = new PrintWriter(clientSocket.getOutputStream(), true);
-//	            clientInputStream = new BufferedReader( new InputStreamReader(clientSocket.getInputStream()));
+				clientSocket = serverSocket.accept();
+				clientOutputStream = new PrintWriter(clientSocket.getOutputStream(), true);
+	            clientInputStream = new BufferedReader( new InputStreamReader(clientSocket.getInputStream()));
 
 				while(isRunning)
 		    	{
@@ -396,6 +398,21 @@ public class Server {
 	}
 	
 
+
+
+	public void processPacket(DatagramPacket packet)
+	{
+
+		//Construct RTP packet
+		byte[] data = packet.getData();
+		RtpPacket rtpPacket = new RtpPacket(data, data.length);
+
+		//Print out packet.
+		for(byte b: rtpPacket.getPayload())
+			System.out.print(b +  " ");
+		System.out.println();
+
+	}
 	
 	/**
 	 * Processes audio bytes and plays them on the audio play thread
@@ -484,7 +501,7 @@ public class Server {
 			closeUDPServer();
 		} else
 		{
-			processAudioBytes(packet.getData());
+			processPacket(packet);
 		}
 	}
 	
@@ -505,8 +522,8 @@ public class Server {
 				//System.out.println("Checking clients");
 					
 			//	Socket curSocket = clientTable.get(name);
-			//	PrintWriter curOutputStream = clientOutputStreams.get(name);
-			//	BufferedReader curInputStream = clientInputStreams.get(name);
+				//PrintWriter curOutputStream = clientOutputStreams.get(name);
+				//BufferedReader curInputStream = clientInputStreams.get(name);
 				//if (clientInputStream != null && clientOutputStream != null && !clientSocket.isClosed())
 				if (true)
 				{

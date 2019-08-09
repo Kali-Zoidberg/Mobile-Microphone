@@ -44,7 +44,9 @@ public class Main {
 
 	public static void main (String args[])
 	{
-		testAudioFiles();
+		startServer(Integer.parseInt(port));
+
+		//testAudioFiles();
 		/*
 		try {
 			CaptureDeviceManager.commit();
@@ -214,6 +216,12 @@ public class Main {
 		client.stop();
 		System.out.println("transmission ended...");
 	}
+
+	public static void startServer(int port) {
+		Server server = new Server(port);
+		server.startServer();
+	}
+
 	public static void testClientServer()
 	{
 		int port = 7000;
@@ -250,8 +258,8 @@ public class Main {
 			try {
 
 				client.connectToServer();
-				
 				client.sendDataToServer("UID.asdf");
+
 				Thread.sleep(2000);
 				System.out.println(client.readMessageFromSerer());
 				int bytesPerRead = 8012;
@@ -340,7 +348,7 @@ public class Main {
 			try {
 				
 				Hashtable<String, Mixer> audioMixerTable = AudioFunctions.createHashTableOfMixers();
-				Mixer cableinput = audioMixerTable.get("Headset Earphone (Corsair VOID PRO USB Gaming Headset )");
+				Mixer cableinput = audioMixerTable.get("Speakers (Realtek High Definition Audio)");
  				cableInputLine = AudioFunctions.getLineFromDevice(testStream.getFormat(), cableinput.getMixerInfo());
  				System.out.println(testStream.getFormat().toString());
  				//cableInputLine = AudioSystem.getSourceDataLine(testStream.getFormat());
