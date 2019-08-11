@@ -136,11 +136,13 @@ public class RtpPacket {
             //get the payload bitstream:
             payload_size = packet_size - HEADER_SIZE;
             payload = new byte[payload_size];
+
             for (int i=HEADER_SIZE; i < packet_size; i++)
                 payload[i-HEADER_SIZE] = packet[i];
 
             //interpret the changing fields of the header:
             pPayloadType = header[1] & 127;
+
             pSequenceNumber = unsigned_int(header[3]) + 256*unsigned_int(header[2]);
             pTimeStamp = unsigned_int(header[7]) + 256*unsigned_int(header[6]) + 65536*unsigned_int(header[5]) + 16777216*unsigned_int(header[4]);
         }

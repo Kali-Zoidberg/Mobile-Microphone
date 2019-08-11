@@ -1,3 +1,6 @@
+import Interpolation.Interpolation;
+import helper.ByteConversion;
+import jitter.SimpleJitterBuffer;
 import rtp.RtpPacket;
 
 import java.io.BufferedReader;
@@ -39,6 +42,8 @@ public class Server {
 	private PrintWriter clientOutputStream;
 	private FileWriter stringFile = null;
 	private BufferedReader clientInputStream;
+	private SimpleJitterBuffer jitterBuffer;
+
 	private Hashtable<String, Socket> clientTable = new Hashtable<String, Socket>();
 	private Hashtable<String, PrintWriter> clientOutputStreams = new Hashtable<String, PrintWriter>();
 	private Hashtable<String, BufferedReader> clientInputStreams =  new Hashtable<String, BufferedReader>();
@@ -63,10 +68,10 @@ public class Server {
 	
 	private boolean isRunning = true;
 	
-	Server(int port)
+	public Server(int port)
 	{
 		portNumber = port;
-		
+		jitterBuffer = new SimpleJitterBuffer(400, 500);
 		try {
 			
 			serverSocket = new ServerSocket(portNumber);
@@ -185,10 +190,7 @@ public class Server {
 	}
 	
 	
-	public void serverTick(byte[] buffer, DatagramPacket packet)
-	{
-		
-	}
+
 	/**
 	 * The main while loop that runs the server. Either start this on a separate thread or call startServer.
 	 */
@@ -262,7 +264,7 @@ public class Server {
 		}
 	}
 	
-	public boolean verifyUID(String uid)
+	private boolean verifyUID(String uid)
 	{
 		return true;
 	}
@@ -271,12 +273,12 @@ public class Server {
 	/**
 	 * Analyze's a command set by a user.
 	 * Valid commands are:
-	 * @param line
-	 * @param outputStream
-	 * @return
+	 * @param line The user's input
+	 * @param outputStream The output stream to write to
+	 * @return Returns true if the command is valid.
 	 */
 	
-	public boolean analyzeCommand(String line, PrintWriter outputStream)
+	private boolean analyzeCommand(String line, PrintWriter outputStream)
 	{
 		
 		
@@ -290,7 +292,7 @@ public class Server {
 		}
 		
 		String command = line.substring(0, periodIndex);
-		String subCommand = line.substring(periodIndex + 1, line.length());
+		String subCommand = line.substring(periodIndex + 1);
 		
 		if (command.equals("UID"))
 		{
@@ -388,7 +390,7 @@ public class Server {
 	
 	/**
 	 * Sets up a UDP socket for the server.
-	 * @param port
+	 * @param port The port number for the UDP socket
 	 * @throws SocketException
 	 */
 	public void setupUDP(int port) throws SocketException
@@ -406,11 +408,9 @@ public class Server {
 		//Construct RTP packet
 		byte[] data = packet.getData();
 		RtpPacket rtpPacket = new RtpPacket(data, data.length);
-
+		//Send rtpPacket to jitter buffer
+		jitterBuffer.write(rtpPacket);
 		//Print out packet.
-		for(byte b: rtpPacket.getPayload())
-			System.out.print(b +  " ");
-		System.out.println();
 
 	}
 	
@@ -496,6 +496,7 @@ public class Server {
 	public void analyzeUDPCommand(byte[] buffer, DatagramPacket packet)
 	{
 		String recieved = new String(packet.getData(), 0, packet.getLength());
+
 		if(recieved.equals("end"))
 		{
 			closeUDPServer();
@@ -528,14 +529,14 @@ public class Server {
 				if (true)
 				{
 					try {
-						System.out.println("*****Waiting to Read line from User*******");
+						//System.out.println("*****Waiting to Read line from User*******");
 						try {
 							if(UDPRunning)
 							{
-								byte buf[] = new byte[bufferSize];
+								byte buf[] = new byte[824];
 								DatagramPacket somePacket = new DatagramPacket(buf, buf.length);
 								dataSocket.receive(somePacket);
-								System.out.println("recieved packet from ");
+								//System.out.println("recieved packet from ");
 								analyzeUDPCommand(buf, somePacket);
 							} else
 								curLine = clientInputStream.readLine();
@@ -756,7 +757,7 @@ public class Server {
 	
 	/**
 	 * Sets the audio line that the computer plays too write audio suing the specified audio format
-	 * @param clientAudioFormat
+	 * @param
 	 * @throws LineUnavailableException 
 	 */
 	
@@ -826,11 +827,77 @@ public class Server {
 		{
 			while(server.isRunning())
 			{
-			//	System.out.println("audio play thread running");
-				this.playAudioBytes();
+
+				//Read jitterbuffer
+				RtpPacket[] packets = new RtpPacket[0];
+				try {
+					packets = this.server.jitterBuffer.read();
+					if (packets != null) {
+						System.out.println("read packets from jitter buffer");
+						this.playAudioBytes(packets);
+					}
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+
 			}
 		}
-		
+
+		/**
+		 * Writes rtpPackets that contain audio to the main audio line.
+		 * @param packets
+		 * @return
+		 */
+		public boolean playAudioBytes(RtpPacket[] packets)
+		{
+
+			if (Main.cableInputLine != null) {
+				//interpolate
+				LinkedList<byte[]> audioBytes = this.interpolatePackets(packets);
+
+				//write audioBytes from list to data line.
+				while (!audioBytes.isEmpty()) {
+					byte[] data = audioBytes.remove();
+
+					AudioFunctions.writeDataToLine(data, Main.cableInputLine);
+				}
+			}
+
+			return true;
+		}
+
+		/**
+		 * Takes an array of rtpPackets, converts to shorts, interpolates and then returns as bytes
+		 * @param packets The packets to interpolate
+		 * @return REturns an array of bytes containing the audio data.
+		 */
+		private LinkedList<byte[]> interpolatePackets(RtpPacket[] packets)
+		{
+			LinkedList<byte[]> byteList = new LinkedList<>();
+			//Add bytes in pairs
+			for (int i = 0; i < packets.length - 1; i += 2)
+			{
+
+				byteList.add(packets[i].getPayload());
+
+				//Convert to short since we are currently dealing with 16bit pcm
+				short[] firstShorts = ByteConversion.byteArrayToShortArray(packets[i].getPayload(), true);
+				short[] secondShorts = ByteConversion.byteArrayToShortArray(packets[i + 1].getPayload(), true);
+
+				//Interpolate between the byte pairs
+				if (((packets[i+1].getSequenceNumber() - packets[i].getSequenceNumber()) - 1 ) > 0) {
+					short[][] interpolatedBytes = Interpolation.interpolate(firstShorts, secondShorts, (packets[i + 1].getSequenceNumber() - packets[i].getSequenceNumber()) - 1);
+					//increment size by num interpoalted bytes;
+					for (int j = 0; j < interpolatedBytes.length; ++j)
+						byteList.push(ByteConversion.shortArrayToByteArray(interpolatedBytes[j], true));
+				}
+				byteList.add(packets[i+1].getPayload());
+			}
+
+
+			return byteList;
+
+		}
 		/**
 		 * The data line
 		 * @return
@@ -881,61 +948,8 @@ public class Server {
 			this.byteBuffers.offer(data);
 			return true;
 		}
-		
-		
-		//server feeds audio 
-		public boolean playAudioBytes()
-		{
-			
-			long timePlayedFor = 0;
 
-			if (Main.cableInputLine != null)
-			{
 
-				int placeHolderDelta = 20;
-				
-			//	int size = pipeLineBuffer.size();
-				//there is a
-				//System.out.println("buffer size: " + otherByteBuffer.size());
-				if (!pipeLineBuffer.isEmpty() && pipeLineBuffer.size() > placeHolderDelta)
-				{
-					timePlayedFor = System.currentTimeMillis();
-					//unload audio from pipeLineBuffer to aduioBuffer
-					
-					System.out.println("Unloading audio from pipeline buffer to audio buffer.");
-					while(!pipeLineBuffer.isEmpty())
-					{
-						audioBuffer.add(pipeLineBuffer.remove());
-					}
-					
-					//play audio
-					System.out.println("Playing audio from audio buffer");
-					while(!audioBuffer.isEmpty())
-					{
-						byte[] dataFromBuffer;
-						dataFromBuffer = audioBuffer.remove();
-						long curTime = System.currentTimeMillis();
-						AudioFunctions.writeDataToLine(dataFromBuffer, Main.cableInputLine);
-						System.out.println("Play time: " + (System.currentTimeMillis() - curTime));
-						while (!pipeLineBuffer.isEmpty())
-						{
-							
-							audioBuffer.add(pipeLineBuffer.remove());
-							System.out.println("Adding bytes from pipeLine Buffer to audioBuffer while playing the audio\n The size of the audio buffer is now " + audioBuffer.size());
-						}
-					}
-					System.out.println("Total time played for: " + (System.currentTimeMillis() - timePlayedFor));
-				}
-			} else
-			{
-					//System.out.println("ping ratio: " + server.pingRatio);
-			}
-			 
-
-			//Print out the data.
-			return true;
-		}
-		
 	}
 }
 

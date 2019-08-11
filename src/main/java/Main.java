@@ -4,17 +4,9 @@ import rtp.RtpPacket;
 
 import javax.media.CaptureDeviceManager;
 import javax.media.MediaLocator;
-import javax.media.format.AudioFormat;
 import javax.media.protocol.CaptureDevice;
 import javax.media.rtp.SessionManager;
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.DataLine;
-import javax.sound.sampled.Line;
-import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.Mixer;
-import javax.sound.sampled.SourceDataLine;
-import javax.sound.sampled.UnsupportedAudioFileException;
+import javax.sound.sampled.*;
 
 import java.io.*;
 import java.net.DatagramPacket;
@@ -88,22 +80,46 @@ public class Main {
 		*/
 	}
 
-	public static void testUDPServer() throws LineUnavailableException {
-		int udpPort = 6914;
+	public static void startServer(int port) {
+
+		try {
+			openCableLine();
+		} catch (LineUnavailableException e) {
+			e.printStackTrace();
+		}
+
+		Server server = new Server(port);
+		server.startServer();
+	}
+
+	/**
+	 * Opens the cable input line (Will be expanded to take audio format as parameters).
+	 * @throws LineUnavailableException
+	 */
+	public static void openCableLine() throws LineUnavailableException {
 		String filename = "sup.wav";
 
 		AudioInputStream testStream = null;
 		try {
 			testStream = AudioFunctions.createAudioInputStream(filename);
+			Hashtable<String, Mixer> audioMixerTable = AudioFunctions.createHashTableOfMixers();
+			Mixer cableinput = audioMixerTable.get("Speakers (Realtek High Definition Audio)");
+			cableInputLine = AudioFunctions.getLineFromDevice(testStream.getFormat(), cableinput.getMixerInfo());
+			System.out.print(testStream.getFormat().toString());
+			cableInputLine.open();
+			cableInputLine.start();
 		} catch (UnsupportedAudioFileException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 
-		cableInputLine = AudioSystem.getSourceDataLine(testStream.getFormat());
-		cableInputLine.open();
-		cableInputLine.start();
+
+	}
+
+	public static void testUDPServer() throws LineUnavailableException {
+		int udpPort = 6914;
+		openCableLine();
 
 		System.out.println("Starting udp server...");
 		Server server = new Server(6915);
@@ -217,10 +233,7 @@ public class Main {
 		System.out.println("transmission ended...");
 	}
 
-	public static void startServer(int port) {
-		Server server = new Server(port);
-		server.startServer();
-	}
+
 
 	public static void testClientServer()
 	{

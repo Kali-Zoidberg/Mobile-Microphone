@@ -14,70 +14,83 @@ public class SimpleJitterBuffer {
     private LinkedList<RtpPacket> overflow;
     private LinkedList<RtpPacket> queue;
 
-    public SimpleJitterBuffer(int discardTime, boolean isReading, int bufSize) {
+    public SimpleJitterBuffer(int discardTime, int bufSize) {
         this.discardTime = discardTime;
-        this.isReading = isReading;
         this.bufSize = bufSize;
         this.overflow = new LinkedList<RtpPacket>();
         this.queue = new LinkedList<RtpPacket>();
     }
 
-    public synchronized RtpPacket[] read()
-    {
-        isReading = true;
-        int count = 0;
+    public synchronized RtpPacket[] read() throws InterruptedException {
 
         //if queue is empty, return null.
-        if (queue.isEmpty()) {
-            isReading = false;
+        //or we could wait
+        if (queue.size() < bufSize) {
+            this.setReading(false);
             return null;
         }
 
+        this.setReading(true);
 
         RtpPacket[] rtpPacketArray = new RtpPacket[bufSize];
         //Unload from  overflow
 
         //Read from current queue
-        for (; !queue.isEmpty() && count < bufSize; ++count)
+        for ( int i = 0; !queue.isEmpty() && i < bufSize; ++i)
         {
-            rtpPacketArray[count] = queue.pop();
+            rtpPacketArray[i] = queue.remove();
         }
 
+        this.setReading(false);
 
         return rtpPacketArray;
     }
 
-    public void write(RtpPacket rtpPacket)
+    public synchronized void write(RtpPacket rtpPacket)
     {
         //For simple, if it's out of order, discard.
+
         if (isReading)
         {
+            System.out.println("Adding to voerflow");
+
             overflow.add(rtpPacket);
         } else
         {
             RtpPacket curPacket;
-            if (!queue.isEmpty())
+
+            if (!queue.isEmpty() && queue.size() < bufSize)
             {
-                 curPacket = queue.peek();
-                 //Packet exceeded time delay so discard it
+                 curPacket = queue.peekLast();
+
+
+                //Packet exceeded time delay so discard it
+                /*
                  if ((int) (System.currentTimeMillis()  - rtpPacket.getTimeStamp()) > curPacket.getTimeStamp() + discardTime) {
 
                         System.out.println("Packet was discard by queue: " + rtpPacket.getSequenceNumber());
                         return;
                  }
-
+                */
+                if (rtpPacket.getSequenceNumber() < curPacket.getSequenceNumber())
+                {
+                    System.out.println("Packet is out of order, discarding the packet: " + rtpPacket.getSequenceNumber() + " < " + curPacket.getSequenceNumber());
+                    return ;
+                }
                  //add packet to queue
                 queue.add(rtpPacket);
 
-
-
-
-            } else
+            } else if (queue.isEmpty())
             {
-                //If queue is not empty then just add the packet to the queue
+                //If queue is empty then just add the packet to the queue regardless
                 queue.add(rtpPacket);
             }
         }
+    }
+
+    private synchronized void setReading(boolean reading)
+    {
+        this.isReading = reading;
     }
 
     public int getDiscardTime() {
