@@ -307,21 +307,12 @@ public class Server {
 		
 		if(command.equals("A"))
 		{
-			outputStream.println("Thank you for the audio bytes!");
+			outputStream.println("Thank you for the audio bytes! (Old TCP implementation)");
 			
 			//if the number of buffers is > than the ping ratio, play the audio from one buffer
 			
 			//if the ping is greater than the audio rate, then create a buffer of twice the size and play from there.
-		
-			  if (processAudioBytes(subCommand))
-			  {
-			  		outputStream.println("Those were valid audio bytes!");
-			  		return true;
-			  } else
-			  {
-			  		outputStream.println("Those were invalid audio bytes.");
-			  		return false;
-			  }
+			return true;
 			 
 		
 		}
@@ -413,63 +404,8 @@ public class Server {
 		//Print out packet.
 
 	}
-	
-	/**
-	 * Processes audio bytes and plays them on the audio play thread
-	 * @param audioBytes The audio bytes to be played.
-	 * @return Returns true if succesful.
-	 */
-	public boolean processAudioBytes(byte[] audioBytes) {
-		
-		if (audioPlayThread != null)
-		{
-			//this will also block the server thread but it will still receive data from the socket.. I think...
-			
-			
-				System.out.println("Putting bytes on audio play thread");
-					audioPlayThread.pipeLineBuffer.add(audioBytes);
-			//maybe notify thread here? 
-			//System.out.println(audioPlayThread.pipeLineBuffer.size());
-			//this.pingRatio = (long) Math.ceil((double) ( AudioFunctions.getAudioPlayTime(this.clientAudioFormat, data.length) / this.getPing()));
-		
-			//Alternative is to block on the audio play thread which may mean that the audio is never actually processed so I believe blocking on the server thread is optimal.
-			//here is the alternative anyways
 
-			//audioPlayThread.addAudioToQueue(data);
-		}
-		else
-			System.out.println("Audio Play Thread has not been started. This data is going nowhere.");
-		
-		return true;
-	}
-	
-	public boolean processAudioBytes(String strBytes) {
-		byte[] data = AudioFunctions.getBytesFromString(strBytes, regex);
-		float playTime  = AudioFunctions.getAudioPlayTime(this.clientAudioFormat, data.length);
-		
-		if (audioPlayThread != null)
-		{
-			//this will also block the server thread but it will still receive data from the socket.. I think...
-			
-			
-				System.out.println("Putting bytes on audio play thread");
-					audioPlayThread.pipeLineBuffer.add(data);
-			//maybe notify thread here? 
-			//System.out.println(audioPlayThread.pipeLineBuffer.size());
-			//this.pingRatio = (long) Math.ceil((double) ( AudioFunctions.getAudioPlayTime(this.clientAudioFormat, data.length) / this.getPing()));
-		
-			//Alternative is to block on the audio play thread which may mean that the audio is never actually processed so I believe blocking on the server thread is optimal.
-			//here is the alternative anyways
 
-			//audioPlayThread.addAudioToQueue(data);
-		}
-		else
-			System.out.println("Audio Play Thread has not been started. This data is going nowhere.");
-		
-		return true;
-	}
-	
-	
 		
 	/**
 	 * Cleans up client connection to allow for another client to connect.
@@ -516,112 +452,47 @@ public class Server {
 
 		//try {
 	
-	//	Set<String> names = clientTable.keySet();
 		String curLine = null;
-	//		for (String name : names)
-	//		{
-				//System.out.println("Checking clients");
-					
-			//	Socket curSocket = clientTable.get(name);
-				//PrintWriter curOutputStream = clientOutputStreams.get(name);
-				//BufferedReader curInputStream = clientInputStreams.get(name);
-				//if (clientInputStream != null && clientOutputStream != null && !clientSocket.isClosed())
-				if (true)
-				{
+			if (true)
+			{
+				try {
 					try {
-						//System.out.println("*****Waiting to Read line from User*******");
-						try {
-							if(UDPRunning)
-							{
-								byte buf[] = new byte[824];
-								DatagramPacket somePacket = new DatagramPacket(buf, buf.length);
-								dataSocket.receive(somePacket);
-								//System.out.println("recieved packet from ");
-								analyzeUDPCommand(buf, somePacket);
-							} else
-								curLine = clientInputStream.readLine();
-						} catch (java.net.SocketException e)
+						//Anaylze UDP datagrams
+						if(UDPRunning)
 						{
-							System.out.println("Client reset connection... closing client socket");
-							
-						}
-					//	System.out.println("*******Message from user: " + curLine + " ***************");
-						if (curLine != null)
-							analyzeCommand(curLine, clientOutputStream);
+							//TODO
+							byte buf[] = new byte[824];
+							DatagramPacket somePacket = new DatagramPacket(buf, buf.length);
+							dataSocket.receive(somePacket);
+							//System.out.println("recieved packet from ");
+							analyzeUDPCommand(buf, somePacket);
+						} else
+							curLine = clientInputStream.readLine();
+					} catch (java.net.SocketException e)
+					{
+						System.out.println("Client reset connection... closing client socket");
 
-					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						System.out.println("*********Client closed connection. Closing server.***********");
-						System.out.println("Exception Caught" + e.getMessage());
-						this.closeServer();
-						e.printStackTrace();
 					}
-					//Analyze commands.	
+					if (curLine != null)
+						analyzeCommand(curLine, clientOutputStream);
+
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					System.out.println("*********Client closed connection. Closing server.***********");
+					System.out.println("Exception Caught" + e.getMessage());
+					this.closeServer();
+					e.printStackTrace();
 				}
+				//Analyze commands.
+			}
 			//}
-	//	} catch (NullPointerException e)
-	//	{
-			
-		//}
-	}
-	
-	
-	/**
-	 * Checks all the queues and adds them to the hashtable after the server has done it's tick.
-	 */
-	
-	public void checkQueues()
-	{
+		//	} catch (NullPointerException e)
+		//	{
 
-			while (clientSocketQueue != null && !clientSocketQueue.isEmpty())
-			{
-					Tuple<String, Socket> curSocket = clientSocketQueue.remove();
-					clientTable.put(curSocket.getObjA(), curSocket.getObjB());
-					System.out.println("placed socket on client table");
-			}
-			
-			while (clientInputQueue != null && !clientInputQueue.isEmpty())
-			{
-				Tuple<String, BufferedReader> curInputStream = clientInputQueue.remove();
-				clientInputStreams.put(curInputStream.getObjA(), curInputStream.getObjB());
-				
-			}
-			
-			while (clientOutputQueue != null && !clientOutputQueue.isEmpty())
-			{
-				System.out.println("Taking from outputStream queue");
-				Tuple<String, PrintWriter> curOutputStream = clientOutputQueue.remove();
-				clientOutputStreams.put(curOutputStream.getObjA(), curOutputStream.getObjB());
-				curOutputStream.getObjB().println("Hello");
-			}
-		
+	//}
 	}
-	
-	
-	/*
-	**Legacy code for supporting multiple clients.
-	
-	
-	public Socket addClient(String name, Socket clientSocket) throws IOException
-	{
-		
-		System.out.println("add client accepted");
-		PrintWriter outputStream = new PrintWriter(clientSocket.getOutputStream(), true);
-		BufferedReader inputStream = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-			clientSocketQueue.add(new Tuple<String, Socket>(name, clientSocket));
-			clientInputQueue.add(new Tuple<String, BufferedReader>(name, inputStream));
-			clientOutputQueue.add(new Tuple<String, PrintWriter>(name, outputStream));
-			
-		
-		
-		System.out.println("ClientSocketQueue size" + clientSocketQueue.size());
-		System.out.println("Accepted client");
-		return clientSocket;
 
-	}
-*/
-	
-	
+
 	/**
 	 * Checks if the server is running
 	 * @return Returns true if the server is running, false if it is not.
@@ -695,34 +566,7 @@ public class Server {
 		return clientPing;
 		
 	}
-	
-	/**
-	 * A class to allow acceptions of clients and adds them to the server queues.
-	 * Currently not used as the current application only requires 
-	 * @author nickj
-	 *
-	 */
-/*
- * Legacy code for supporting multiple clients.
-	class AcceptThread extends Thread
-	{
-		public void run()
-		{
-			try {
-				while (isRunning)
-				{
-				Socket clientSocket = serverSocket.accept();
-				addClient(clientSocket.getInetAddress().getHostAddress(), clientSocket);
-				}
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			System.out.println("Acept thread has exited");
-		}
-	}
-*/
-	
+
 	
 	/**
 	 * Returns the audio format the client is using to stream audio data.
