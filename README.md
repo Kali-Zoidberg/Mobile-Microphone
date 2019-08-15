@@ -6,16 +6,16 @@ The intention of this software is to enable users to utilize their mobile phone 
 I am considering creating a web application instead of apps for each application.</br>
 </br>
 **Windows Progress**
-  - Backend 60%
+  - Backend 70%
     - Batch scripts need to be written.
-    - Jitter Buffer needs implementation.
+    - Jitter Buffer needs better implementation.
   - Frontend 0% (will start once backend is complete).
 </br>
 </br>
 
 **Android**
   - Backend 90%
-    - Need to convert the packets to adhere to RTP.
+    - Mostly done. Minor adjustmenets may be made
   - Frontend 50%
     - Need to add transitions between the GUI but the layout is completed.
 </br>
