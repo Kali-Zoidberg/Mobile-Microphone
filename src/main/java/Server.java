@@ -46,16 +46,12 @@ public class Server {
 
 	private Hashtable<String, Socket> clientTable = new Hashtable<String, Socket>();
 	private Hashtable<String, PrintWriter> clientOutputStreams = new Hashtable<String, PrintWriter>();
-	private Hashtable<String, BufferedReader> clientInputStreams =  new Hashtable<String, BufferedReader>();
-	private LinkedList<Tuple<String, Socket>> clientSocketQueue = new LinkedList<Tuple<String, Socket>>();
-	private LinkedList<Tuple<String, BufferedReader>> clientInputQueue =  new LinkedList<Tuple<String, BufferedReader>>();
-	private LinkedList<Tuple<String, PrintWriter>> clientOutputQueue =  new LinkedList<Tuple<String, PrintWriter>>();
 	private int bufferSize = 64;
 	private AudioPlayThread audioPlayThread;
-	private ArrayList<byte[]> audioBuffers = new ArrayList<byte[]>(); 
 	private boolean UDPRunning = false;
 	private String regex = " ";
 	private long timeSinceLastMessage;
+	private long timeSinceLastPacket;
 	private long clientPing = 0;
 	
 	private long pingRatio = 2;
@@ -71,7 +67,7 @@ public class Server {
 	public Server(int port)
 	{
 		portNumber = port;
-		jitterBuffer = new SimpleJitterBuffer(400, 500);
+		jitterBuffer = new SimpleJitterBuffer(400, 100);
 		try {
 			
 			serverSocket = new ServerSocket(portNumber);
@@ -95,8 +91,6 @@ public class Server {
 	public PrintWriter createClientOutputStream(String name) throws IOException
 	{
 		Socket clientSocket = clientTable.get(name);
-	//	if (clientSocket == null)
-	//		clientSocket = this.addClient(name);
 		PrintWriter clientOutputStream = new PrintWriter(clientSocket.getOutputStream(), true);
 		clientOutputStreams.put(name, clientOutputStream);
 		return clientOutputStream;
@@ -138,25 +132,7 @@ public class Server {
 	public void closeServer()
 	{
 		System.out.println("*********Beginning Close Operations*********");
-		/*
-		 * Legacy code for supporting multiple clients.
-		Set<String> clientSocketKeys = clientTable.keySet();
-		
-		for (String name: clientSocketKeys)
-		{
-			try {
-				clientOutputStreams.get(name).println("Bye.");
-				clientTable.get(name).close();
-				clientInputStreams.get(name).close();
-				
-				clientOutputStreams.get(name).close();
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			
-		}
-		*/
+
 		try {
 			System.out.println("***********Closing client socket*************");
 			this.closeClientConnection();
