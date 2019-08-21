@@ -180,7 +180,8 @@ public class AudioFunctions {
 	
 	public static void writeDataToLine(byte[] data, SourceDataLine outputLine)
 	{
-		outputLine.write(data, 0, data.length);
+		if (data != null)
+			outputLine.write(data, 0, data.length);
 	}
 	
 	/**

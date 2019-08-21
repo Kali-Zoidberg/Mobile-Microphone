@@ -1,5 +1,7 @@
 package Network;
 
+import Interpolation.Interpolation;
+import helper.ByteConversion;
 import rtp.RtpPacket;
 
 import java.util.LinkedList;
@@ -17,7 +19,7 @@ public class PacketOrganizer {
      * @return Returns a reorder array (useful for delivering UDP packets and utilizing interpolation).
      */
 
-    public byte[][] reorder(byte[][] a, int clumpSize)
+    public byte[][] order(byte[][] a, int clumpSize)
     {
 
         if (clumpSize > a.length)
@@ -64,10 +66,9 @@ public class PacketOrganizer {
      * @param clumpSize
      * @return
      */
-    public byte[][] order(RtpPacket[] a, int clumpSize)
+    public byte[][] reorder(RtpPacket[] a, int clumpSize)
     {
         LinkedList<byte[]> queue = new LinkedList<>();
-        byte[][] orderedBytes = new byte[clumpSize][];
         //Iterate over pair
         for (int i = 0; i < a.length - 1; i += 2)
         {
@@ -80,23 +81,43 @@ public class PacketOrganizer {
             if (seqDelta > 1)
             {
                 //interpolate
-					/*
-					 byte[] interpolBytes = interpolate(a[i].getPacket(), a[i+1].getPacket(), seqDelta);
-					 for (int j = 0; j < interpolBytes.length; ++j)
+
+					 short[][] interpolShorts = Interpolation.interpolate(ByteConversion.byteArrayToShortArray(a[i].getPacket(), true), ByteConversion.byteArrayToShortArray(a[i+1].getPacket(), true), seqDelta);
+
+					 for (int j = 0; j < interpolShorts.length; ++j)
 					 {
-					 	queue.add(interpolBytes[j]);
+					     byte[] interpolBytes = ByteConversion.shortArrayToByteArray(interpolShorts[j], true);
+					 	queue.add(interpolBytes);
 					 }
-					 */
+
             }
         }
 
-        //Reorder from queue
-        for (int i = 0; i < clumpSize; ++i)
-        {
-            orderedBytes[i] = queue.remove();
-        }
+        //Add the last payload to the queue
+        queue.add(a[a.length - 1].getPayload());
 
-        return null;
+        byte[][] orderedBytes = new byte[queue.size()][];
+        byte[][] subByteArray = new byte[clumpSize][];
+
+        int k = 0;
+
+        //Reorder from queue and reorganize subArrays of clumpSize.
+        for (int i = 0; !queue.isEmpty(); ++i)
+        {
+
+            if (i != 0 && i % clumpSize == 0)
+            {
+                //Unshuffle sub byte array
+                subByteArray = unshuffle(subByteArray);
+
+                //Copy subByteArray to ordered bytes
+                for (int j = 0; j < clumpSize; ++j)
+                    orderedBytes[k++] = subByteArray[j];
+            }
+            //remove from queue
+            subByteArray[i % clumpSize] = queue.remove();
+        }
+        return orderedBytes;
     }
 
     /**

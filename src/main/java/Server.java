@@ -1,4 +1,5 @@
 import Interpolation.Interpolation;
+import Network.PacketOrganizer;
 import helper.ByteConversion;
 import jitter.SimpleJitterBuffer;
 import rtp.RtpPacket;
@@ -43,6 +44,7 @@ public class Server {
 	private FileWriter stringFile = null;
 	private BufferedReader clientInputStream;
 	private SimpleJitterBuffer jitterBuffer;
+	private PacketOrganizer packetOrganizer = new PacketOrganizer();
 
 	private Hashtable<String, Socket> clientTable = new Hashtable<String, Socket>();
 	private Hashtable<String, PrintWriter> clientOutputStreams = new Hashtable<String, PrintWriter>();
@@ -53,6 +55,7 @@ public class Server {
 	private long timeSinceLastMessage;
 	private long timeSinceLastPacket;
 	private long clientPing = 0;
+	private int clumpSize = 4;
 	
 	private long pingRatio = 2;
 	
@@ -589,8 +592,15 @@ public class Server {
 		Main.cableInputLine = AudioSystem.getSourceDataLine(format);
 		
 	}
-	
-	
+
+	public int getClumpSize() {
+		return clumpSize;
+	}
+
+	public void setClumpSize(int clumpSize) {
+		this.clumpSize = clumpSize;
+	}
+
 	/**
 	 * Sets the client's audio streaming format
 	 * @param clientAudioFormat The AudioFormat used to decipher the client's audio byte streaming.
@@ -653,7 +663,8 @@ public class Server {
 				try {
 					packets = this.server.jitterBuffer.read();
 					if (packets != null) {
-						System.out.println("read packets from jitter buffer");
+						System.out.println("read packets from jitter buffer.");
+
 						this.playAudioBytes(packets);
 					}
 				} catch (InterruptedException e) {
@@ -670,17 +681,20 @@ public class Server {
 		 */
 		public boolean playAudioBytes(RtpPacket[] packets)
 		{
-
+			int len = packets.length;
+			byte[][] organizedPackets;
 			if (Main.cableInputLine != null) {
-				//interpolate
-				LinkedList<byte[]> audioBytes = this.interpolatePackets(packets);
 
-				//write audioBytes from list to data line.
-				while (!audioBytes.isEmpty()) {
-					byte[] data = audioBytes.remove();
 
-					AudioFunctions.writeDataToLine(data, Main.cableInputLine);
-				}
+				//interpolate and reorganize packets
+				organizedPackets = packetOrganizer.reorder(packets, server.getClumpSize());
+
+				//write audio bytes from organizedPackets Array to data line.
+				System.out.println("organizedPackets len: " + organizedPackets.length);
+				System.out.println("packets len: " + packets.length);
+				for (int i = 0; i < organizedPackets.length; ++i)
+					AudioFunctions.writeDataToLine(organizedPackets[i], Main.cableInputLine);
+
 			}
 
 			return true;
