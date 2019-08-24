@@ -25,10 +25,7 @@ public class Interpolation {
         //Determine the max size of the columns.
         int cols = a.length > b.length ? a.length : b.length;
         float ratio = 1;
-        double aAverage = calcAverage(a);
-        double bAverage = calcAverage(b);
 
-        boolean isASmaller = aAverage < bAverage ? true: false;
 
         short[][] interpolShorts = new short[delta][cols];
 
@@ -36,15 +33,16 @@ public class Interpolation {
             ratio = (i + 1) / (float) (delta + 1);
 
             //This equation calculates the average amount we need to add to each short in the array.
-            double interpolAmount = ((bAverage - aAverage) * ratio);
+           // double interpolAmount = ((bAverage - aAverage) * ratio);
             //double interpolAmount = cosineInterpolate(aAverage, bAverage, ratio);
             for (int j = 0; j < a.length; ++j) {
 
                 //add a[j] to the interpolated amount to reach the new average.
-                //short offset = isASmaller ? a[j] : b[j];
-                short offset = a[j];
-                interpolShorts[i][j] = (short) ((offset + interpolAmount));
-                //interpolShorts[i][j] = (short) interpolAmount;
+                //short offset = a[j];
+              //  interpolShorts[i][j] = (short) ((offset + interpolAmount));
+                int offset = b[j] - a[j];
+                // interpolAmount = ((int)a[j] + (int) b[j]) * ratio + 0.5;
+                interpolShorts[i][j] = (short) (a[j] + (offset * ratio) + 0.5);
 
             }
                 //interpolShorts[i][j] = (short) (a[j] + ((b[j] - a[j])/2));

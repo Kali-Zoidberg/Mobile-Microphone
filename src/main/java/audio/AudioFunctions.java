@@ -1,12 +1,13 @@
+package audio;
+
 import Interpolation.Interpolation;
 import helper.ByteConversion;
+import helper.Tuple;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Hashtable;
 
@@ -14,7 +15,6 @@ import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 
-import java.util.LinkedList;
 import java.util.zip.Deflater;
 
 import javax.sound.sampled.Line;

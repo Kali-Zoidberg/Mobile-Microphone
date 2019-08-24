@@ -1,10 +1,11 @@
+package helper;
 
-class Tuple<A, B>
+public class Tuple<A, B>
 {
 	private A objA= null;
 	private B objB = null;
 	
-	Tuple(A objA, B objB)
+	public Tuple(A objA, B objB)
 	{
 		this.setObjA(objA);
 		this.setObjB(objB);

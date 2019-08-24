@@ -1,8 +1,10 @@
 import Interpolation.Interpolation;
 import Network.PacketOrganizer;
+import audio.AudioFunctions;
 import helper.ByteConversion;
 import jitter.SimpleJitterBuffer;
 import rtp.RtpPacket;
+import threads.AudioWriter;
 
 import java.io.BufferedReader;
 import java.io.FileWriter;
@@ -16,7 +18,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.LinkedList;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -55,7 +56,9 @@ public class Server {
 	private long timeSinceLastMessage;
 	private long timeSinceLastPacket;
 	private long clientPing = 0;
-	private int clumpSize = 4;
+	//play with clump sizes, payload sizes and buffer size.
+	//higher clumpSize is better it appears.
+	private int clumpSize = 64;
 	
 	private long pingRatio = 2;
 	
@@ -70,7 +73,7 @@ public class Server {
 	public Server(int port)
 	{
 		portNumber = port;
-		jitterBuffer = new SimpleJitterBuffer(400, 100);
+		jitterBuffer = new SimpleJitterBuffer(400, 512);
 		try {
 			
 			serverSocket = new ServerSocket(portNumber);
@@ -232,7 +235,7 @@ public class Server {
 		commandDescription.put("F", "Specifies audio format.");
 		subStringCommands.put("A", "No commands");
 		subStringCommands.put("UID", "No sub commands");
-		subStringCommands.put("S", "Sub commands are: \nclose - Closes the server.\ndisconnect - Disconnects the client from the server.");
+		subStringCommands.put("S", "Sub commands are: \nclose - Closes the server.\ndisconnect - Disconnects the client from the server.\nclumpSize {int}");
 		subStringCommands.put("F", "Split Audio specifications between spaces. The ordering is {float SampleRate, int sampleSizeInBits, int channels, int frameSize, float frameRate");
 		
 		for (String str: commands)
@@ -295,8 +298,7 @@ public class Server {
 			 
 		
 		}
-		
-		
+
 		if (command.equals("F"))
 		{
 			
@@ -327,30 +329,37 @@ public class Server {
 		
 		if (command.equals("S"))
 		{
-			if(subCommand.equals("disconnect"))
+			String[] specifications = subCommand.split(this.regex);
+
+			if (!specifications[0].equals("clumpSize")) {
+				if (subCommand.equals("disconnect")) {
+					//reset client stuff
+					System.out.println("Closing client connection.");
+					this.closeClientConnection();
+				}
+
+				if (subCommand.equals("close")) {
+					//closes the server.
+					System.out.println("Closing server.");
+					this.closeServer();
+				}
+
+				if (subCommand.equals("udp")) {
+					System.out.println("Beginning UDP transition.");
+					try {
+						setupUDP(this.portNumber);
+					} catch (SocketException e) {
+						System.out.println("Could not open socket");
+						e.printStackTrace();
+
+					}
+				}
+			} else
 			{
-				//reset client stuff
-				System.out.println("Closing client connection.");
-				this.closeClientConnection();
-			}
-			
-			if (subCommand.equals("close"))
-			{
-				//closes the server.
-				System.out.println("Closing server.");
-				this.closeServer();
-			}
-			
-			if(subCommand.equals("udp"))
-			{
-				System.out.println("Beginning UDP transition.");
-				try {
-					setupUDP(this.portNumber);
-				} catch (SocketException e)
-				{
-					System.out.println("Could not open socket");
-					e.printStackTrace();
-					
+				if (specifications[0].equals("clumpSize")) {
+					int clumpSize = Integer.parseInt(specifications[1]);
+					System.out.println("Setting clump size to : " + clumpSize);
+					this.clumpSize = clumpSize;
 				}
 			}
 		}
@@ -440,7 +449,7 @@ public class Server {
 						if(UDPRunning)
 						{
 							//TODO
-							byte buf[] = new byte[824];
+							byte buf[] = new byte[140];
 							DatagramPacket somePacket = new DatagramPacket(buf, buf.length);
 							dataSocket.receive(somePacket);
 							//System.out.println("recieved packet from ");
@@ -655,6 +664,10 @@ public class Server {
 		
 		public void run()
 		{
+			long start = System.currentTimeMillis();
+			long curRead = 0;
+			long lastRead = 0;
+			long end;
 			while(server.isRunning())
 			{
 
@@ -663,9 +676,18 @@ public class Server {
 				try {
 					packets = this.server.jitterBuffer.read();
 					if (packets != null) {
+						curRead = System.currentTimeMillis();
+						if (lastRead != 0)
+						{
+							System.out.println("Time between Reads: " + (curRead - lastRead));
+						}
+						lastRead = System.currentTimeMillis();
+						start = System.currentTimeMillis();
+						System.out.println("Start: " +  start);
 						System.out.println("read packets from jitter buffer.");
-
 						this.playAudioBytes(packets);
+						System.out.println("Delta: " + (System.currentTimeMillis() - start));
+
 					}
 				} catch (InterruptedException e) {
 					e.printStackTrace();
@@ -692,8 +714,15 @@ public class Server {
 				//write audio bytes from organizedPackets Array to data line.
 				System.out.println("organizedPackets len: " + organizedPackets.length);
 				System.out.println("packets len: " + packets.length);
-				for (int i = 0; i < organizedPackets.length; ++i)
-					AudioFunctions.writeDataToLine(organizedPackets[i], Main.cableInputLine);
+
+				//This could lead to out of order depending on queue for threads (blocking needs to be FIFO).
+				//Create thread to write packets.
+				AudioWriter writer = new AudioWriter(organizedPackets, Main.cableInputLine);
+
+				//Start thread.
+				writer.start();
+
+
 
 			}
 

@@ -1,21 +1,16 @@
 
 
+import audio.AudioFunctions;
 import rtp.RtpPacket;
 
-import javax.media.CaptureDeviceManager;
 import javax.media.MediaLocator;
-import javax.media.protocol.CaptureDevice;
-import javax.media.rtp.SessionManager;
 import javax.sound.sampled.*;
 
 import java.io.*;
-import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Hashtable;
-import java.util.Vector;
 
 /**
  * Can use mixer info to get a clip to stream audio data too. clip extends dataline!
@@ -24,8 +19,7 @@ import java.util.Vector;
  * @author nickj
  *
  */
-import javax.media.rtp.RTPSocket;
-import javax.media.rtp.RTPStream;
+
 public class Main {
 	
 	public static SourceDataLine cableInputLine;
@@ -37,6 +31,8 @@ public class Main {
 	public static void main (String args[])
 	{
 		startServer(Integer.parseInt(port));
+		//Testers tester = new Testers();
+		//tester.main();
 
 		//testAudioFiles();
 		/*
@@ -263,7 +259,7 @@ public class Main {
 			cableInputLine = AudioSystem.getSourceDataLine(testStream.getFormat());
 			cableInputLine.open();
 			cableInputLine.start();
-			//AudioFunctions.writeFromStreamToLine(testStream, cableInputLine, 10, 1024, 1024);
+			//audio.AudioFunctions.writeFromStreamToLine(testStream, cableInputLine, 10, 1024, 1024);
 			
 			server.startServer();
 			

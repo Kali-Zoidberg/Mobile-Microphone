@@ -25,18 +25,26 @@ public class SimpleJitterBuffer {
 
         //if queue is empty, return null.
         //or we could wait
-        if (queue.size() < bufSize) {
-            this.setReading(false);
-            return null;
+        if (queue.size() < bufSize ) {
+            if (queue.size() == 0)
+            {
+                this.setReading(false);
+                return null;
+            }
+            if ((queue.size() != 0 && queue.peekLast().getSequenceNumber() < queue.peekFirst().getSequenceNumber() + bufSize)) {
+
+                this.setReading(false);
+                return null;
+            }
         }
 
         this.setReading(true);
-
-        RtpPacket[] rtpPacketArray = new RtpPacket[bufSize];
+        int len = queue.size();
+        RtpPacket[] rtpPacketArray = new RtpPacket[len];
         //Unload from  overflow
 
         //Read from current queue
-        for ( int i = 0; !queue.isEmpty() && i < bufSize; ++i)
+        for ( int i = 0; !queue.isEmpty() && i < len; ++i)
         {
             rtpPacketArray[i] = queue.remove();
         }

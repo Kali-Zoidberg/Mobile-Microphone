@@ -4,7 +4,7 @@ import Interpolation.Interpolation;
 import helper.ByteConversion;
 import rtp.RtpPacket;
 
-import java.util.LinkedList;
+import java.util.*;
 
 public class PacketOrganizer {
 
@@ -68,38 +68,94 @@ public class PacketOrganizer {
      */
     public byte[][] reorder(RtpPacket[] a, int clumpSize)
     {
-        LinkedList<byte[]> queue = new LinkedList<>();
+        //WAIT WE FORGOT ABOUT CLUMPID
+        SortedMap<Integer, ArrayList<byte[]>> clumps = new TreeMap<>();
+        int numByteArrays = 0;
+
         //Iterate over pair
-        for (int i = 0; i < a.length - 1; i += 2)
+        for (int i = 0; i < a.length - 1; ++i)
         {
-            int seqDelta = a[i + 1].getSequenceNumber() - a[i].getSequenceNumber();
+            if (a[i +1] != null && a[i] != null) {
+                int seqDelta = a[i + 1].getSequenceNumber() - a[i].getSequenceNumber();
 
-            //Always store first  in queue
-            queue.add(a[i].getPayload());
+                int firstClumpID = a[i].getSequenceNumber() / clumpSize;
+                int secondClumpID = a[i + 1].getSequenceNumber() / clumpSize;
+                //Check if first clumpID is null
+                if (clumps.get(firstClumpID) == null)
+                    clumps.put(firstClumpID, new ArrayList<>());
 
-            //Interpolate
-            if (seqDelta > 1)
-            {
-                //interpolate
+                //Always store first packet  in queue
+                clumps.get(firstClumpID).add(a[i].getPayload());
+                ++numByteArrays;
 
-					 short[][] interpolShorts = Interpolation.interpolate(ByteConversion.byteArrayToShortArray(a[i].getPacket(), true), ByteConversion.byteArrayToShortArray(a[i+1].getPacket(), true), seqDelta);
+                //Interpolate
+                if (seqDelta > 1 && firstClumpID == secondClumpID) {
 
-					 for (int j = 0; j < interpolShorts.length; ++j)
-					 {
-					     byte[] interpolBytes = ByteConversion.shortArrayToByteArray(interpolShorts[j], true);
-					 	queue.add(interpolBytes);
-					 }
+                    //interpolate
 
+                    short[][] interpolShorts = Interpolation.interpolate(ByteConversion.byteArrayToShortArray(a[i].getPayload(), true), ByteConversion.byteArrayToShortArray(a[i + 1].getPayload(), true), seqDelta - 1);
+                    for (int j = 0; j < interpolShorts.length; ++j) {
+                        System.out.println("interpolated");
+                        byte[] interpolBytes = ByteConversion.shortArrayToByteArray(interpolShorts[j], true);
+                        clumps.get(firstClumpID).add(interpolBytes);
+                        ++numByteArrays;
+
+                    }
+
+                } else if ( seqDelta > 1)
+                {
+                    System.out.println("could not interpolate.");
+                }
             }
         }
+        System.out.println("a len: " + a.length);
+        int lastClumpID = a[a.length - 1].getSequenceNumber() / clumpSize;
+        if (clumps.get(lastClumpID) == null)
+            clumps.put(lastClumpID, new ArrayList<>());
 
         //Add the last payload to the queue
-        queue.add(a[a.length - 1].getPayload());
+        clumps.get(lastClumpID).add(a[a.length - 1].getPayload());
+        ++numByteArrays;
 
-        byte[][] orderedBytes = new byte[queue.size()][];
-        byte[][] subByteArray = new byte[clumpSize][];
+        System.out.println("numByte Arrays: " + numByteArrays);
 
+        byte[][] orderedBytes = new byte[numByteArrays][];
         int k = 0;
+
+
+        //Loop over each clump
+        for (Integer i : clumps.keySet())
+        {
+            ArrayList<byte[]> bytes = clumps.get(i);
+            byte[][] subByteArray = new byte[bytes.size()][];
+            if (bytes.size() != clumpSize)
+            {
+               // System.out.println("****************");
+              //  System.out.println("ERROR CLUMP SIZE: " + bytes.size());
+              //  System.out.println("****************");
+            }
+            //Store the clump elements in a temporarry array
+            for (int j = 0; j < bytes.size(); ++j)
+                subByteArray[j] = bytes.get(j);
+           // System.out.println("*******Before shuffle*********");
+          //  print2DArray(subByteArray);
+          //  System.out.println("****************");
+            //unshuffle the clumps
+            subByteArray = unshuffle(subByteArray);
+          //  System.out.println("********After shuffle********");
+          //  print2DArray(subByteArray);
+          //  System.out.println("****************");
+            //store the clumps in an array
+            for (int j = 0; j < subByteArray.length; ++j) {
+                orderedBytes[k++] = subByteArray[j];
+            }
+
+        }
+
+
+        /*
+        int k = 0;
+
 
         //Reorder from queue and reorganize subArrays of clumpSize.
         for (int i = 0; !queue.isEmpty(); ++i)
@@ -111,12 +167,18 @@ public class PacketOrganizer {
                 subByteArray = unshuffle(subByteArray);
 
                 //Copy subByteArray to ordered bytes
-                for (int j = 0; j < clumpSize; ++j)
+                for (int j = 0; j < clumpSize; ++j) {
+                    System.out.println("unshuffled at: " + i);
                     orderedBytes[k++] = subByteArray[j];
+                    //flush element
+                    subByteArray[j] = null;
+                }
             }
             //remove from queue
             subByteArray[i % clumpSize] = queue.remove();
+
         }
+            */
         return orderedBytes;
     }
 
@@ -137,11 +199,13 @@ public class PacketOrganizer {
         for (int i = 0; i < rows; ++i)
         {
             cols = a[i].length;
+
             retArray[i] = new byte[cols];
 
-            for (int j = 0; j < cols; ++j)
+            for (int j = 0; j < cols && v < cols; ++j)
             {
                 //Copies cols to rows essentially.
+
                 retArray[i][j] = a[u++][v];
 
                 //Once done looping over u rows, increment v to next col and set u = 0.
