@@ -1,6 +1,9 @@
 
 
+import Network.Client;
+import Network.Server;
 import audio.AudioFunctions;
+import resources.PacketDealer;
 import rtp.RtpPacket;
 
 import javax.media.MediaLocator;
@@ -78,44 +81,14 @@ public class Main {
 
 	public static void startServer(int port) {
 
-		try {
-			openCableLine();
-		} catch (LineUnavailableException e) {
-			e.printStackTrace();
-		}
-
 		Server server = new Server(port);
-		server.startServer();
+		server.start();
+		//PacketDealer.initializer(port);
 	}
 
-	/**
-	 * Opens the cable input line (Will be expanded to take audio format as parameters).
-	 * @throws LineUnavailableException
-	 */
-	public static void openCableLine() throws LineUnavailableException {
-		String filename = "sup.wav";
-
-		AudioInputStream testStream = null;
-		try {
-			testStream = AudioFunctions.createAudioInputStream(filename);
-			Hashtable<String, Mixer> audioMixerTable = AudioFunctions.createHashTableOfMixers();
-			Mixer cableinput = audioMixerTable.get("Speakers (Realtek High Definition Audio)");
-			cableInputLine = AudioFunctions.getLineFromDevice(testStream.getFormat(), cableinput.getMixerInfo());
-			System.out.print(testStream.getFormat().toString());
-			cableInputLine.open();
-			cableInputLine.start();
-		} catch (UnsupportedAudioFileException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-
-
-	}
 
 	public static void testUDPServer() throws LineUnavailableException {
 		int udpPort = 6914;
-		openCableLine();
 
 		System.out.println("Starting udp server...");
 		Server server = new Server(6915);
@@ -126,8 +99,7 @@ public class Main {
 		} catch (SocketException e) {
 			e.printStackTrace();
 		}
-		server.startServer();
-
+		server.start();
 	}
 
 	@SuppressWarnings("Duplicates")
@@ -261,8 +233,8 @@ public class Main {
 			cableInputLine.start();
 			//audio.AudioFunctions.writeFromStreamToLine(testStream, cableInputLine, 10, 1024, 1024);
 			
-			server.startServer();
-			
+			server.start();
+
 			Client client = new Client("0.0.0.0", port);
 			try {
 

@@ -1,3 +1,5 @@
+package Network;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -17,7 +19,7 @@ public class Client {
 	private PrintWriter outputStream;
 	private BufferedReader inputStream;
 	
-	Client(String hostName, int port)
+	public Client(String hostName, int port)
 	{
 		this.setPortNumber(port);
 		this.setHostName(hostName);

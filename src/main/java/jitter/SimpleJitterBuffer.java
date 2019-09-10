@@ -1,6 +1,7 @@
 package jitter;
 
 import rtp.RtpPacket;
+import threads.AudioPlayThread;
 
 import java.util.LinkedList;
 
@@ -8,99 +9,184 @@ public class SimpleJitterBuffer {
 
     //Max amount of wiggle room before discard a packet.
     private int discardTime = 400;
-    private boolean isReading = false;
+    private Boolean isReading = new Boolean(false);
+    private Boolean isFull = new Boolean(false);;
+    private Boolean isWriting = new Boolean(false);;
     private int bufSize = 100;
+    private int clumpSize = 4;
 
     private LinkedList<RtpPacket> overflow;
     private LinkedList<RtpPacket> queue;
 
-    public SimpleJitterBuffer(int discardTime, int bufSize) {
+    public SimpleJitterBuffer(int discardTime, int bufSize, int clumpSize) {
         this.discardTime = discardTime;
         this.bufSize = bufSize;
-        this.overflow = new LinkedList<RtpPacket>();
-        this.queue = new LinkedList<RtpPacket>();
+        this.overflow = new LinkedList<>();
+        this.queue = new LinkedList<>();
+        this.clumpSize = clumpSize;
+
     }
 
-    public synchronized RtpPacket[] read() throws InterruptedException {
 
-        //if queue is empty, return null.
-        //or we could wait
-        if (queue.size() < bufSize ) {
-            if (queue.size() == 0)
+    public  RtpPacket[] read() throws InterruptedException {
+        //pass in the thread, make it wait.
+        System.out.println("Beginning read.");
+
+        //if queue is empty, set to non full
+
+/*
+         while ( queue.isEmpty() || this.getWriting() || !this.getFull())
+         {
+
+
+                 if (!this.getFull())
+                 {
+                     System.out.println("Audio thread blocked. Jitter buffer has not been filled.");
+                 } else if (this.getWriting())
+                     System.out.println("Audio thread blocked. Server is writing.");
+                 else
+                     System.out.println("Audio thread blocked. Queue is empty.");
+                 synchronized(this) {
+                     wait();
+                 }
+
+         }
+*/
+/*
+        while (queue.size() < clumpSize && !this.getFull())
+        {
+            synchronized (this)
             {
-                this.setReading(false);
-                return null;
-            }
-            if ((queue.size() != 0 && queue.peekLast().getSequenceNumber() < queue.peekFirst().getSequenceNumber() + bufSize)) {
-
-                this.setReading(false);
-                return null;
+                System.out.println("buf size too small. Waiting");
+                wait();
             }
         }
 
-        this.setReading(true);
-        int len = queue.size();
-        RtpPacket[] rtpPacketArray = new RtpPacket[len];
+ */
+        while (queue.isEmpty() || this.getWriting())
+        {
+            synchronized (this)
+            {
+                if (queue.isEmpty())
+                    System.out.println("Queue empty.");
+                else
+                    System.out.println("Is writing.");
+                wait();
+            }
+        }
+        //is reading so block writer
+        while (queue.size() < clumpSize) {
+            System.out.println("WAiting for queue to get bigger.");
+            synchronized (this) {
+                wait();
+            }
+        }
+        setReading(true);
+
+        RtpPacket[] rtpPacketArray = new RtpPacket[clumpSize];
         //Unload from  overflow
 
         //Read from current queue
-        for ( int i = 0; !queue.isEmpty() && i < len; ++i)
+        for ( int i = 0; i < clumpSize; ++i)
         {
             rtpPacketArray[i] = queue.remove();
         }
 
-        this.setReading(false);
+        setReading(false);
+        //not reading anymore, notify writer that they can write.
 
+           System.out.println("Done reading, notifying all threads.");
+          synchronized (this) {
+              notify();
+          }
         return rtpPacketArray;
     }
 
-    public synchronized void write(RtpPacket rtpPacket)
-    {
+    public void write(RtpPacket rtpPacket) throws InterruptedException {
         //For simple, if it's out of order, discard.
-
-        if (isReading)
-        {
-            System.out.println("Adding to voerflow");
-
-            overflow.add(rtpPacket);
-        } else
-        {
-            RtpPacket curPacket;
-
-            if (!queue.isEmpty() && queue.size() < bufSize)
-            {
-                 curPacket = queue.peekLast();
+        //block reader from reading
+        if (this.getReading()) {
+        }
+        while (this.getReading()) {
 
 
-                //Packet exceeded time delay so discard it
-                /*
-                 if ((int) (System.currentTimeMillis()  - rtpPacket.getTimeStamp()) > curPacket.getTimeStamp() + discardTime) {
-
-                        System.out.println("Packet was discard by queue: " + rtpPacket.getSequenceNumber());
-                        return;
-                 }
-                */
-                if (rtpPacket.getSequenceNumber() < curPacket.getSequenceNumber())
-                {
-                    System.out.println("Packet is out of order, discarding the packet: " + rtpPacket.getSequenceNumber() + " < " + curPacket.getSequenceNumber());
-                    return ;
-                }
-                 //add packet to queue
-                queue.add(rtpPacket);
-
-            } else if (queue.isEmpty())
-            {
-                //If queue is empty then just add the packet to the queue regardless
-                queue.add(rtpPacket);
+            System.out.println("Writer is waiting...");
+            synchronized (this) {
+                wait();
             }
+            System.out.println("Writer is done waiting..");
+
+            //overflow.add(rtpPacket);
+        }
+        setWriting(true);
+        synchronized (this) {
+            System.out.println("Adding delay to setWriting true");
+            wait(40);
+        }
+        RtpPacket curPacket;
+
+        if (!queue.isEmpty() && queue.size() < bufSize)
+        {
+             curPacket = queue.peekLast();
+
+
+            //Packet exceeded time delay so discard it
+            /*
+             if ((int) (System.currentTimeMillis()  - rtpPacket.getTimeStamp()) > curPacket.getTimeStamp() + discardTime) {
+
+                    System.out.println("Packet was discard by queue: " + rtpPacket.getSequenceNumber());
+                    return;
+             }
+            */
+            if (rtpPacket.getSequenceNumber() < curPacket.getSequenceNumber())
+            {
+                System.out.println("Packet is out of order, discarding the packet: " + rtpPacket.getSequenceNumber() + " < " + curPacket.getSequenceNumber());
+                return ;
+            }
+             //add packet to queue
+            queue.add(rtpPacket);
+
+        } else if (queue.isEmpty())
+        {
+            //If queue is empty then just add the packet to the queue regardless
+            queue.add(rtpPacket);
+        }
+
+
+    this.setWriting(false);
+
+    //Buffer full, notify all that they may read.
+    if (queue.size() >= bufSize) {
+        setFull(true);
+        System.out.println("Queue is full. Notifying all readers.");
+        synchronized (this) {
+            notify();
         }
     }
+    //Done writing, allow reader to read
 
+    }
+
+    private synchronized  void setFull(boolean isFull) { this.isFull = isFull; }
+    private synchronized  void setWriting(boolean isWriting) { this.isWriting = isWriting; }
     private synchronized void setReading(boolean reading)
     {
         this.isReading = reading;
     }
 
+    private synchronized boolean getReading()
+    {
+        return isReading;
+    }
+
+    private synchronized boolean getWriting()
+    {
+        return isWriting;
+    }
+    private synchronized  boolean getFull()
+    {
+        return isFull;
+    }
     public int getDiscardTime() {
         return discardTime;
     }

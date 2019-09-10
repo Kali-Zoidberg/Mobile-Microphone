@@ -1,10 +1,8 @@
-import Interpolation.Interpolation;
-import Network.PacketOrganizer;
-import audio.AudioFunctions;
-import helper.ByteConversion;
+package Network;
+
 import jitter.SimpleJitterBuffer;
 import rtp.RtpPacket;
-import threads.AudioWriter;
+import threads.AudioPlayThread;
 
 import java.io.BufferedReader;
 import java.io.FileWriter;
@@ -19,14 +17,8 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Hashtable;
-import java.util.LinkedList;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.SynchronousQueue;
 
 import javax.sound.sampled.AudioFormat;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.SourceDataLine;
 
 /**
  * To implement multiple, clientSocket = accept should be on a separate thread which will be blocked until someone connects.
@@ -35,7 +27,7 @@ import javax.sound.sampled.SourceDataLine;
  * @author nickj In memoriam Grandis Jack Betzold
  */
 
-public class Server {
+public class Server extends Thread{
 	private ServerSocket serverSocket;
 	private DatagramSocket dataSocket;
 	private DatagramPacket packet;
@@ -45,7 +37,6 @@ public class Server {
 	private FileWriter stringFile = null;
 	private BufferedReader clientInputStream;
 	private SimpleJitterBuffer jitterBuffer;
-	private PacketOrganizer packetOrganizer = new PacketOrganizer();
 
 	private Hashtable<String, Socket> clientTable = new Hashtable<String, Socket>();
 	private Hashtable<String, PrintWriter> clientOutputStreams = new Hashtable<String, PrintWriter>();
@@ -60,12 +51,10 @@ public class Server {
 	//higher clumpSize is better it appears.
 	private int clumpSize = 64;
 	
-	private long pingRatio = 2;
-	
+
 
 	
 	private AudioFormat clientAudioFormat = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 44100.0f, 16, 2, 4, 44100.0f, false);
-	private StartServerThread serverStartThread = new StartServerThread(this);
 
 	
 	private boolean isRunning = true;
@@ -73,19 +62,56 @@ public class Server {
 	public Server(int port)
 	{
 		portNumber = port;
-		jitterBuffer = new SimpleJitterBuffer(400, 512);
 		try {
 			
 			serverSocket = new ServerSocket(portNumber);
-			audioPlayThread = new AudioPlayThread(Main.cableInputLine, this, clientAudioFormat);
-			
-		} catch (IOException e) {
+			audioPlayThread = new AudioPlayThread(null, this, clientAudioFormat);
+            jitterBuffer = new SimpleJitterBuffer(400, 256, clumpSize);
+			audioPlayThread.start();
+        } catch (IOException e) {
 			
 			e.printStackTrace();
 		
 		}
 	}
-	
+	public void run()
+    {
+        System.out.println("******************************************");
+        System.out.println("************Network.Server started****************");
+        System.out.println("******************************************");
+        //AcceptThread acceptClients = new AcceptThread();
+        //acceptClients.start();
+        try {
+            clientSocket = serverSocket.accept();
+            clientOutputStream = new PrintWriter(clientSocket.getOutputStream(), true);
+            clientInputStream = new BufferedReader( new InputStreamReader(clientSocket.getInputStream()));
+
+            while(isRunning)
+            {
+                try {
+                    serverTick(clientSocket, clientOutputStream, clientInputStream);
+                } catch (java.net.SocketException e)
+                {
+                    System.out.println("Network.Client closed connection. Ending server");
+                    this.closeServer();
+                }
+            }
+        } catch (Exception e1) {
+            // TODO Auto-generated catch block
+            e1.printStackTrace();
+        }
+
+        /***Legacy Code for allowing multiple users. No point in spending time implementing
+         * When this is just suppose to be one way communication
+
+         try {
+         acceptClients.join();
+         } catch (InterruptedException e) {
+         // TODO Auto-generated catch block
+         e.printStackTrace();
+         }
+         closeServer();
+         */    }
 	
 	/**
 	 * Creates a client output stream and returns it. Read from this stream to communicate with the server.
@@ -154,70 +180,8 @@ public class Server {
 	
 	
 	
-	/**
-	 * Starts the server on a separate thread.
-	 */
-	
-	public void startServer()
-	{
-		try {
-			 stringFile = new FileWriter("ClientServer.txt");
-		
-		} catch (IOException e2) {
-			// TODO Auto-generated catch block
-			e2.printStackTrace();
-		}
-		serverStartThread.start();
-		audioPlayThread.start();
-	}
-	
-	
 
-	/**
-	 * The main while loop that runs the server. Either start this on a separate thread or call startServer.
-	 */
-	
-	public void runServer()
-	{
-		System.out.println("******************************************");
-		System.out.println("************Server started****************");
-		System.out.println("******************************************");
-		//AcceptThread acceptClients = new AcceptThread();
-		//acceptClients.start();
-			try {
-				clientSocket = serverSocket.accept();
-				clientOutputStream = new PrintWriter(clientSocket.getOutputStream(), true);
-	            clientInputStream = new BufferedReader( new InputStreamReader(clientSocket.getInputStream()));
 
-				while(isRunning)
-		    	{
-					 try {
-					 	serverTick(clientSocket, clientOutputStream, clientInputStream);
-					 } catch (java.net.SocketException e)
-					 {
-					 	System.out.println("Client closed connection. Ending server");
-					 		this.closeServer();
-					 }
-				}
-			} catch (Exception e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			}
-			
-			/***Legacy Code for allowing multiple users. No point in spending time implementing
-			 * When this is just suppose to be one way communication
-           
-            try {
-				acceptClients.join();
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			closeServer();
-			 */
-		
-	}
-	
 
 	/**
 	 * Prints the protocol of the server.
@@ -230,7 +194,7 @@ public class Server {
 		Hashtable<String, String> commandDescription = new Hashtable<String, String>();
 		Hashtable<String, String> subStringCommands = new Hashtable<String, String>();
 		commandDescription.put("A", "Sends audio data using _ as a regex");
-		commandDescription.put("UID", "Specifies the user's id so that the Server may verify it");
+		commandDescription.put("UID", "Specifies the user's id so that the Network.Server may verify it");
 		commandDescription.put("S", "Specifies server commands.");
 		commandDescription.put("F", "Specifies audio format.");
 		subStringCommands.put("A", "No commands");
@@ -388,7 +352,11 @@ public class Server {
 		byte[] data = packet.getData();
 		RtpPacket rtpPacket = new RtpPacket(data, data.length);
 		//Send rtpPacket to jitter buffer
-		jitterBuffer.write(rtpPacket);
+		try {
+			jitterBuffer.write(rtpPacket);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 		//Print out packet.
 
 	}
@@ -449,7 +417,7 @@ public class Server {
 						if(UDPRunning)
 						{
 							//TODO
-							byte buf[] = new byte[140];
+							byte buf[] = new byte[824];
 							DatagramPacket somePacket = new DatagramPacket(buf, buf.length);
 							dataSocket.receive(somePacket);
 							//System.out.println("recieved packet from ");
@@ -458,7 +426,7 @@ public class Server {
 							curLine = clientInputStream.readLine();
 					} catch (java.net.SocketException e)
 					{
-						System.out.println("Client reset connection... closing client socket");
+						System.out.println("Network.Client reset connection... closing client socket");
 
 					}
 					if (curLine != null)
@@ -466,7 +434,7 @@ public class Server {
 
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
-					System.out.println("*********Client closed connection. Closing server.***********");
+					System.out.println("*********Network.Client closed connection. Closing server.***********");
 					System.out.println("Exception Caught" + e.getMessage());
 					this.closeServer();
 					e.printStackTrace();
@@ -585,22 +553,6 @@ public class Server {
 		audioPlayThread.setAudioFormat(clientAudioFormat);
 	
 	}
-	
-	
-	/**
-	 * Sets the audio line that the computer plays too write audio suing the specified audio format
-	 * @param
-	 * @throws LineUnavailableException 
-	 */
-	
-	public void setMainCableInputLine(AudioFormat format) throws LineUnavailableException
-	{
-		
-		if (Main.cableInputLine.isOpen())
-			Main.cableInputLine.close();
-		Main.cableInputLine = AudioSystem.getSourceDataLine(format);
-		
-	}
 
 	public int getClumpSize() {
 		return clumpSize;
@@ -622,198 +574,14 @@ public class Server {
 
 	}
 
-	
-	/**
-	 * A class for starting the main server loop on a separate thread.
-	 * @author nickj
-	 *
-	 */
-	
-	class StartServerThread extends Thread
-	{
-		private Server server;
-		StartServerThread(Server server)
-		{
-			this.server = server;
-		}
-		public void run()
-		{
-			this.server.runServer();
-		
-		}
-	}
-	
-	class AudioPlayThread extends Thread
-	{
-		private SourceDataLine dataLine;
-		private Server server;
-		private AudioFormat audioFormat;
-		private SynchronousQueue<byte[]> byteBuffers;
-		private LinkedList<byte[]> audioBuffer;
-		private ConcurrentLinkedQueue<byte[]> pipeLineBuffer;
-		private boolean startedPlaying = false;
-		AudioPlayThread(SourceDataLine dataLine, Server server, AudioFormat format)
-		{
-			audioBuffer = new LinkedList<byte[]>();
-			byteBuffers = new SynchronousQueue<byte[]>();
-			pipeLineBuffer = new ConcurrentLinkedQueue<byte[]>();
-			this.dataLine = dataLine;
-			this.setServer(server);
-			this.setAudioFormat(format);
-		}
-		
-		public void run()
-		{
-			long start = System.currentTimeMillis();
-			long curRead = 0;
-			long lastRead = 0;
-			long end;
-			while(server.isRunning())
-			{
-
-				//Read jitterbuffer
-				RtpPacket[] packets = new RtpPacket[0];
-				try {
-					packets = this.server.jitterBuffer.read();
-					if (packets != null) {
-						curRead = System.currentTimeMillis();
-						if (lastRead != 0)
-						{
-							System.out.println("Time between Reads: " + (curRead - lastRead));
-						}
-						lastRead = System.currentTimeMillis();
-						start = System.currentTimeMillis();
-						System.out.println("Start: " +  start);
-						System.out.println("read packets from jitter buffer.");
-						this.playAudioBytes(packets);
-						System.out.println("Delta: " + (System.currentTimeMillis() - start));
-
-					}
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-
-			}
-		}
-
-		/**
-		 * Writes rtpPackets that contain audio to the main audio line.
-		 * @param packets
-		 * @return
-		 */
-		public boolean playAudioBytes(RtpPacket[] packets)
-		{
-			int len = packets.length;
-			byte[][] organizedPackets;
-			if (Main.cableInputLine != null) {
-
-
-				//interpolate and reorganize packets
-				organizedPackets = packetOrganizer.reorder(packets, server.getClumpSize());
-
-				//write audio bytes from organizedPackets Array to data line.
-				System.out.println("organizedPackets len: " + organizedPackets.length);
-				System.out.println("packets len: " + packets.length);
-
-				//This could lead to out of order depending on queue for threads (blocking needs to be FIFO).
-				//Create thread to write packets.
-				AudioWriter writer = new AudioWriter(organizedPackets, Main.cableInputLine);
-
-				//Start thread.
-				writer.start();
+    public SimpleJitterBuffer getJitterBuffer() {
+        return jitterBuffer;
+    }
 
 
 
-			}
-
-			return true;
-		}
-
-		/**
-		 * Takes an array of rtpPackets, converts to shorts, interpolates and then returns as bytes
-		 * @param packets The packets to interpolate
-		 * @return REturns an array of bytes containing the audio data.
-		 */
-		private LinkedList<byte[]> interpolatePackets(RtpPacket[] packets)
-		{
-			LinkedList<byte[]> byteList = new LinkedList<>();
-			//Add bytes in pairs
-			for (int i = 0; i < packets.length - 1; i += 2)
-			{
-
-				byteList.add(packets[i].getPayload());
-
-				//Convert to short since we are currently dealing with 16bit pcm
-				short[] firstShorts = ByteConversion.byteArrayToShortArray(packets[i].getPayload(), true);
-				short[] secondShorts = ByteConversion.byteArrayToShortArray(packets[i + 1].getPayload(), true);
-
-				//Interpolate between the byte pairs
-				if (((packets[i+1].getSequenceNumber() - packets[i].getSequenceNumber()) - 1 ) > 0) {
-					short[][] interpolatedBytes = Interpolation.interpolate(firstShorts, secondShorts, (packets[i + 1].getSequenceNumber() - packets[i].getSequenceNumber()) - 1);
-					//increment size by num interpoalted bytes;
-					for (int j = 0; j < interpolatedBytes.length; ++j)
-						byteList.push(ByteConversion.shortArrayToByteArray(interpolatedBytes[j], true));
-				}
-				byteList.add(packets[i+1].getPayload());
-			}
 
 
-			return byteList;
-
-		}
-		/**
-		 * The data line
-		 * @return
-		 */
-		
-		public SourceDataLine getDataLine() {
-			return dataLine;
-		}
-
-		
-		public void setDataLine(SourceDataLine dataLine) {
-			this.dataLine = dataLine;
-		}
-		
-		
-		public Server getServer() {
-			return server;
-		}
-		
-		
-		public void setServer(Server server) {
-			this.server = server;
-		}
-		
-		
-		public AudioFormat setAudioFormat() {
-			return audioFormat;
-		}
-		
-		
-		public void setAudioFormat(AudioFormat audioFormat) {
-			this.audioFormat = audioFormat;
-		}
-		
-		
-		public SynchronousQueue<byte[]> getByteBuffers() {
-			return byteBuffers;
-		}
-		
-		
-		public void setByteBuffers(SynchronousQueue<byte[]> byteBuffers) {
-			this.byteBuffers = byteBuffers;
-		}
-		
-		
-		public boolean addAudioToQueue(byte[] data)
-		{
-			this.byteBuffers.offer(data);
-			return true;
-		}
-
-
-	}
 }
 
 
