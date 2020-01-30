@@ -1,5 +1,6 @@
 package Network;
 
+import jitter.JitterBuffer;
 import jitter.SimpleJitterBuffer;
 import rtp.RtpPacket;
 import threads.AudioPlayThread;
@@ -36,7 +37,7 @@ public class Server extends Thread{
 	private PrintWriter clientOutputStream;
 	private FileWriter stringFile = null;
 	private BufferedReader clientInputStream;
-	private SimpleJitterBuffer jitterBuffer;
+	private JitterBuffer jitterBuffer;
 
 	private Hashtable<String, Socket> clientTable = new Hashtable<String, Socket>();
 	private Hashtable<String, PrintWriter> clientOutputStreams = new Hashtable<String, PrintWriter>();
@@ -66,7 +67,7 @@ public class Server extends Thread{
 			
 			serverSocket = new ServerSocket(portNumber);
 			audioPlayThread = new AudioPlayThread(null, this, clientAudioFormat);
-            jitterBuffer = new SimpleJitterBuffer(400, 256, clumpSize);
+            jitterBuffer = new JitterBuffer(400, 256);
 			audioPlayThread.start();
         } catch (IOException e) {
 			
@@ -354,7 +355,18 @@ public class Server extends Thread{
 		//Send rtpPacket to jitter buffer
 		try {
 			jitterBuffer.write(rtpPacket);
-		} catch (InterruptedException e) {
+		} catch (InterruptedException | IllegalMonitorStateException e) {
+			if (e instanceof IllegalMonitorStateException) {
+				System.out.println("Illeage state monitor exception. Blocking thread.");
+				try {
+					this.wait();
+					processPacket(packet);
+				} catch (InterruptedException ex) {
+					ex.printStackTrace();
+				}
+
+			}
+
 			e.printStackTrace();
 		}
 		//Print out packet.
@@ -574,7 +586,7 @@ public class Server extends Thread{
 
 	}
 
-    public SimpleJitterBuffer getJitterBuffer() {
+    public JitterBuffer getJitterBuffer() {
         return jitterBuffer;
     }
 

@@ -19,6 +19,7 @@ public class RtpPacket {
     private int pSequenceNumber;
     private int pTimeStamp;
     private int pSsrc;
+    private String id;
 
     //Bitstream of the RTP header
     private byte[] header;
@@ -115,6 +116,8 @@ public class RtpPacket {
         //print header
         return header;
     }
+
+
     public RtpPacket(byte[] packet, int packet_size)
     {
         //fill default fields:
@@ -146,6 +149,20 @@ public class RtpPacket {
             pSequenceNumber = unsigned_int(header[3]) + 256*unsigned_int(header[2]);
             pTimeStamp = unsigned_int(header[7]) + 256*unsigned_int(header[6]) + 65536*unsigned_int(header[5]) + 16777216*unsigned_int(header[4]);
         }
+    }
+
+    /**
+     * Generates a unique ID for the packet using the packetSequence number and timestamp.
+     */
+    public void generateId()
+    {
+        StringBuffer strBuffer = new StringBuffer();
+        //Make the timestamp into hexidecimal
+        //Make the Sequence number into hexidecimal
+        strBuffer.append(this.getTimeStamp());
+        strBuffer.append(this.getSequenceNumber());
+        this.id = strBuffer.toString();
+
     }
 
     //--------------------------
@@ -240,6 +257,15 @@ public class RtpPacket {
             return(nb);
         else
             return(256+nb);
+    }
+
+    /**
+     * Returns the unique ID based on the timestamp and sequence number of the packet.
+     * @return
+     */
+    public String getId()
+    {
+        return this.id;
     }
 
 }

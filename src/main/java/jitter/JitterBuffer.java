@@ -13,7 +13,7 @@ import java.util.concurrent.LinkedBlockingQueue;
  * The read fgrom should return a specciifed millisecond amount of packets or array
  * And then it can call a write to overflow buffer after it finishes execution blocking when nesccesary!!!
  *
- *
+ *Right now there is little packet unordering due to local testing.
  * OverflowBuffer could be multiple arrays too, issues is with allocating space for these arrays is main concern.
  */
 public class JitterBuffer {
@@ -22,14 +22,50 @@ public class JitterBuffer {
     private LinkedList<RtpPacket> overflowBuffer;
     private boolean isReading = false;
     private int size;
-
-    public JitterBuffer(int size) {
+    private long discardTime;
+    private int clumpSize = 4;
+    public JitterBuffer(long discardTime, int size) {
         this.size = size;
         tempBuffer = new RtpPacket[size];
         outputBuffer = new LinkedBlockingQueue<>();
         overflowBuffer = new LinkedList<>();
+        this.discardTime = discardTime;
     }
 
+    //Writes to output buffer
+    public synchronized void write(RtpPacket packet) throws InterruptedException {
+
+        if (isReading) {
+            this.wait();
+            System.out.println("Waiting for thead to finish.");
+        }
+        System.out.printf("Done reading. Putting packet %s into buffer.\n", packet.getId());
+
+        outputBuffer.put(packet);
+
+    }
+
+    public synchronized RtpPacket[] read() throws InterruptedException {
+        int currentBufferSize = 0;
+        RtpPacket retPackets[] = new RtpPacket[this.clumpSize];
+        if(isReading)
+        {
+            System.out.printf("Another thread is currently reading. %s is wating", this.hashCode());
+            this.wait();
+        }
+        while((currentBufferSize = this.outputBuffer.size()) < this.clumpSize) {
+            System.out.printf("Buffer size: %d is < %d\r\n", currentBufferSize, this.clumpSize);
+            this.wait();
+        }
+        this.isReading = true;
+        for (int i = 0; i < this.clumpSize; ++i) {
+
+            retPackets[i] = this.outputBuffer.take();
+            System.out.printf("Taking packet %d \n", retPackets[i].getSequenceNumber());
+        }
+        this.isReading = false;
+        return retPackets;
+    }
 
     public void addToTempBuffer(DatagramPacket packet, int hashedIndex) {
 

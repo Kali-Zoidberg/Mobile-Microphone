@@ -53,7 +53,7 @@ public class AudioPlayThread extends Thread {
         {
 
             //Read jitterbuffer
-            RtpPacket[] packets = new RtpPacket[0];
+            RtpPacket packets;
             try {
                 packets = this.server.getJitterBuffer().read();
                 if (packets != null) {
