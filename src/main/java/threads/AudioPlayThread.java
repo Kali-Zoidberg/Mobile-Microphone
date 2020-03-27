@@ -43,6 +43,13 @@ public class AudioPlayThread extends Thread {
         }
     }
 
+    /*****
+     *
+     * README
+     *  What I think is wrong -- I believe that the reordering is taking too long and thus the delay between writes is noticable
+     *  If reogranization happens in the jitter buffer before releasing any resources or writing a new packet, then the audio line can write as soon as possible.
+     * 
+     */
     public void run()
     {
         long start = System.currentTimeMillis();
@@ -53,7 +60,7 @@ public class AudioPlayThread extends Thread {
         {
 
             //Read jitterbuffer
-            RtpPacket packets;
+            RtpPacket[] packets;
             try {
                 packets = this.server.getJitterBuffer().read();
                 if (packets != null) {
@@ -64,7 +71,11 @@ public class AudioPlayThread extends Thread {
                     }
                     lastRead = System.currentTimeMillis();
                     start = System.currentTimeMillis();
-                    //this.playAudioBytes(packets);
+                    byte[][] data  = this.packetOrganizer.reorder(packets, server.getClumpSize());
+                    for (int i = 0; i < data.length; ++i)
+                        this.cableInputLine.write(data[i], 0, data[i].length);
+
+//                    this.playAudioBytes(packets);
                     System.out.println("Delta: " + (System.currentTimeMillis() - start));
 
                 }
@@ -94,6 +105,7 @@ public class AudioPlayThread extends Thread {
 
             //This could lead to out of order depending on queue for threads (blocking needs to be FIFO).
             //Create thread to write packets.
+
             AudioWriter writer = new AudioWriter(organizedPackets, this.cableInputLine);
             writer.run();
             //Start thread.

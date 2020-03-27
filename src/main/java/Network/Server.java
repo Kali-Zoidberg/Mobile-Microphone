@@ -37,7 +37,7 @@ public class Server extends Thread{
 	private PrintWriter clientOutputStream;
 	private FileWriter stringFile = null;
 	private BufferedReader clientInputStream;
-	private JitterBuffer jitterBuffer;
+	private SimpleJitterBuffer jitterBuffer;
 
 	private Hashtable<String, Socket> clientTable = new Hashtable<String, Socket>();
 	private Hashtable<String, PrintWriter> clientOutputStreams = new Hashtable<String, PrintWriter>();
@@ -50,7 +50,7 @@ public class Server extends Thread{
 	private long clientPing = 0;
 	//play with clump sizes, payload sizes and buffer size.
 	//higher clumpSize is better it appears.
-	private int clumpSize = 64;
+	private int clumpSize = 128;
 	
 
 
@@ -67,7 +67,7 @@ public class Server extends Thread{
 			
 			serverSocket = new ServerSocket(portNumber);
 			audioPlayThread = new AudioPlayThread(null, this, clientAudioFormat);
-            jitterBuffer = new JitterBuffer(400, 256);
+            jitterBuffer = new SimpleJitterBuffer(400, 1024, this.clumpSize);
 			audioPlayThread.start();
         } catch (IOException e) {
 			
@@ -432,7 +432,7 @@ public class Server extends Thread{
 							byte buf[] = new byte[824];
 							DatagramPacket somePacket = new DatagramPacket(buf, buf.length);
 							dataSocket.receive(somePacket);
-							//System.out.println("recieved packet from ");
+
 							analyzeUDPCommand(buf, somePacket);
 						} else
 							curLine = clientInputStream.readLine();
@@ -586,7 +586,7 @@ public class Server extends Thread{
 
 	}
 
-    public JitterBuffer getJitterBuffer() {
+    public SimpleJitterBuffer getJitterBuffer() {
         return jitterBuffer;
     }
 

@@ -25,6 +25,7 @@ public class AudioWriter extends Thread{
     public void run()
     {
 
+
         for (int i = 0; i < data.length; ++i)
             AudioFunctions.writeDataToLine(data[i], dataLine);
 

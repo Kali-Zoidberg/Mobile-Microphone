@@ -74,9 +74,10 @@ public class SimpleJitterBuffer {
                 wait();
             }
         }
-        //is reading so block writer
+
+        //Never, ever read from queue unless there is a large enough number of packets.
         while (queue.size() < clumpSize) {
-            System.out.println("WAiting for queue to get bigger.");
+            System.out.println("Waiting for queue to get bigger.");
             synchronized (this) {
                 wait();
             }
@@ -87,15 +88,28 @@ public class SimpleJitterBuffer {
         //Unload from  overflow
 
         //Read from current queue
+        String sequenceStr = "";
+        int lastSequenceNum = 0;
         for ( int i = 0; i < clumpSize; ++i)
         {
             rtpPacketArray[i] = queue.remove();
+            if (lastSequenceNum != 0 && lastSequenceNum > rtpPacketArray[i].getSequenceNumber()) {
+                System.out.println("There was a seuqence out of ordeR:");
+                System.out.println("lastSequenceNum: " + lastSequenceNum + " Current Sequence Num:"  +rtpPacketArray[i].getSequenceNumber());
+
+            }
+            lastSequenceNum = rtpPacketArray[i].getSequenceNumber();
+            sequenceStr += rtpPacketArray[i].getSequenceNumber() + ",";
         }
+
+        System.out.println("***Sequences***");
+        System.out.println(sequenceStr);
+        //print order of rtp packet array.
 
         setReading(false);
         //not reading anymore, notify writer that they can write.
 
-           System.out.println("Done reading, notifying all threads.");
+         System.out.println("Done reading, notifying all threads.");
           synchronized (this) {
               notify();
           }
@@ -119,10 +133,7 @@ public class SimpleJitterBuffer {
             //overflow.add(rtpPacket);
         }
         setWriting(true);
-        synchronized (this) {
-            System.out.println("Adding delay to setWriting true");
-            wait(40);
-        }
+
         RtpPacket curPacket;
 
         if (!queue.isEmpty() && queue.size() < bufSize)
@@ -144,19 +155,16 @@ public class SimpleJitterBuffer {
                 return ;
             }
              //add packet to queue
-            queue.add(rtpPacket);
 
-        } else if (queue.isEmpty())
-        {
-            //If queue is empty then just add the packet to the queue regardless
-            queue.add(rtpPacket);
         }
+        queue.add(rtpPacket);
 
 
     this.setWriting(false);
 
     //Buffer full, notify all that they may read.
-    if (queue.size() >= bufSize) {
+    //If the buffer has been full and the queu size is >= clumpsize, then we can disregard current queue.
+    if ((!this.getFull() && queue.size() >= bufSize) || (this.getFull() && queue.size() >= this.clumpSize * 2)) {
         setFull(true);
         System.out.println("Queue is full. Notifying all readers.");
         synchronized (this) {
