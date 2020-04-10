@@ -47,8 +47,8 @@ public class AudioPlayThread extends Thread {
      *
      * README
      *  What I think is wrong -- I believe that the reordering is taking too long and thus the delay between writes is noticable
-     *  If reogranization happens in the jitter buffer before releasing any resources or writing a new packet, then the audio line can write as soon as possible.
-     * 
+     *  If reorganization happens in the jitter buffer before releasing any resources or writing a new packet, then the audio line can write as soon as possible.
+     *
      */
     public void run()
     {

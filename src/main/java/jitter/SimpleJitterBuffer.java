@@ -1,8 +1,13 @@
 package jitter;
 
+import Network.PacketOrganizer;
+import audio.AudioFunctions;
+import com.sun.xml.internal.ws.util.ByteArrayBuffer;
 import rtp.RtpPacket;
 import threads.AudioPlayThread;
 
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.LinkedList;
 
 public class SimpleJitterBuffer {
@@ -16,13 +21,14 @@ public class SimpleJitterBuffer {
     private int clumpSize = 4;
 
     private LinkedList<RtpPacket> overflow;
-    private LinkedList<RtpPacket> queue;
-
+    private ArrayList<RtpPacket> queue;
+    private ByteBuffer playableAudioBuffer;
     public SimpleJitterBuffer(int discardTime, int bufSize, int clumpSize) {
         this.discardTime = discardTime;
         this.bufSize = bufSize;
         this.overflow = new LinkedList<>();
-        this.queue = new LinkedList<>();
+        this.queue = new ArrayList<>();
+        this.playableAudioBuffer = ByteBuffer.allocate(bufSize);
         this.clumpSize = clumpSize;
 
     }
@@ -92,7 +98,7 @@ public class SimpleJitterBuffer {
         int lastSequenceNum = 0;
         for ( int i = 0; i < clumpSize; ++i)
         {
-            rtpPacketArray[i] = queue.remove();
+            rtpPacketArray[i] = queue.remove(0);
             if (lastSequenceNum != 0 && lastSequenceNum > rtpPacketArray[i].getSequenceNumber()) {
                 System.out.println("There was a seuqence out of ordeR:");
                 System.out.println("lastSequenceNum: " + lastSequenceNum + " Current Sequence Num:"  +rtpPacketArray[i].getSequenceNumber());
@@ -138,7 +144,7 @@ public class SimpleJitterBuffer {
 
         if (!queue.isEmpty() && queue.size() < bufSize)
         {
-             curPacket = queue.peekLast();
+             curPacket = queue.get(queue.size() - 1);
 
 
             //Packet exceeded time delay so discard it
@@ -159,11 +165,25 @@ public class SimpleJitterBuffer {
         }
         queue.add(rtpPacket);
 
+        //whenever the quee reaches a clump size, reorder the packets and empty them into the orderedpackets queue.
+        if (rtpPacket.getSequenceNumber() % clumpSize == 0 && queue.size() >= clumpSize) //reorder packets in queue
+        {
+            PacketOrganizer packetOrganizer = new PacketOrganizer();
+
+            RtpPacket[] tempPackets = (RtpPacket []) queue.subList(0, clumpSize).toArray();
+            byte[][] playableAudioBytes = packetOrganizer.reorder(tempPackets, clumpSize);
+
+            //place the audio bytes into the playable audio buffer.
+            for (int i = 0; i < playableAudioBytes.length; ++i)
+                this.playableAudioBuffer.put(playableAudioBytes[i]);
+
+        }
 
     this.setWriting(false);
 
     //Buffer full, notify all that they may read.
     //If the buffer has been full and the queu size is >= clumpsize, then we can disregard current queue.
+
     if ((!this.getFull() && queue.size() >= bufSize) || (this.getFull() && queue.size() >= this.clumpSize * 2)) {
         setFull(true);
         System.out.println("Queue is full. Notifying all readers.");
