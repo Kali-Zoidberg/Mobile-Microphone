@@ -48,6 +48,7 @@ public class Server extends Thread{
 	private long timeSinceLastMessage;
 	private long timeSinceLastPacket;
 	private long clientPing = 0;
+	private int payloadSize = 512;
 	//play with clump sizes, payload sizes and buffer size.
 	//higher clumpSize is better it appears.
 	private int clumpSize = 128;
@@ -67,7 +68,7 @@ public class Server extends Thread{
 			
 			serverSocket = new ServerSocket(portNumber);
 			audioPlayThread = new AudioPlayThread(null, this, clientAudioFormat);
-            jitterBuffer = new SimpleJitterBuffer(400, 1024, this.clumpSize);
+            jitterBuffer = new SimpleJitterBuffer(400, 1024, this.clumpSize, this.payloadSize);
 			audioPlayThread.start();
         } catch (IOException e) {
 			

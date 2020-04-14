@@ -60,10 +60,10 @@ public class AudioPlayThread extends Thread {
         {
 
             //Read jitterbuffer
-            RtpPacket[] packets;
+            byte[] audioBytes;
             try {
-                packets = this.server.getJitterBuffer().read();
-                if (packets != null) {
+                audioBytes = this.server.getJitterBuffer().read();
+                if (audioBytes != null) {
                     curRead = System.currentTimeMillis();
                     if (lastRead != 0)
                     {
@@ -71,9 +71,7 @@ public class AudioPlayThread extends Thread {
                     }
                     lastRead = System.currentTimeMillis();
                     start = System.currentTimeMillis();
-                    byte[][] data  = this.packetOrganizer.reorder(packets, server.getClumpSize());
-                    for (int i = 0; i < data.length; ++i)
-                        this.cableInputLine.write(data[i], 0, data[i].length);
+                    this.cableInputLine.write(audioBytes, 0, audioBytes.length);
 
 //                    this.playAudioBytes(packets);
                     System.out.println("Delta: " + (System.currentTimeMillis() - start));
