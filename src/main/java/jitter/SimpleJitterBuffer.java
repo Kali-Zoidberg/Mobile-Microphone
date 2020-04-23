@@ -2,13 +2,13 @@ package jitter;
 
 import Network.PacketOrganizer;
 import audio.AudioFunctions;
-import com.sun.xml.internal.ws.util.ByteArrayBuffer;
 import rtp.RtpPacket;
 import threads.AudioPlayThread;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class SimpleJitterBuffer {
 
@@ -20,6 +20,8 @@ public class SimpleJitterBuffer {
     private int bufSize = 100;
     private int payloadSize;
     private int clumpSize = 4;
+    ReentrantLock lock = new ReentrantLock();
+
     PacketOrganizer packetOrganizer = new PacketOrganizer();
 
     private LinkedList<RtpPacket> overflow;
@@ -36,209 +38,69 @@ public class SimpleJitterBuffer {
 
     }
 
-
-//    public  RtpPacket[] read() throws InterruptedException {
-//        //pass in the thread, make it wait.
-//        System.out.println("Beginning read.");
-//
-//        //if queue is empty, set to non full
-//
-///*
-//         while ( queue.isEmpty() || this.getWriting() || !this.getFull())
-//         {
-//
-//
-//                 if (!this.getFull())
-//                 {
-//                     System.out.println("Audio thread blocked. Jitter buffer has not been filled.");
-//                 } else if (this.getWriting())
-//                     System.out.println("Audio thread blocked. Server is writing.");
-//                 else
-//                     System.out.println("Audio thread blocked. Queue is empty.");
-//                 synchronized(this) {
-//                     wait();
-//                 }
-//
-//         }
-//*/
-///*
-//        while (queue.size() < clumpSize && !this.getFull())
-//        {
-//            synchronized (this)
-//            {
-//                System.out.println("buf size too small. Waiting");
-//                wait();
-//            }
-//        }
-//
-// */
-//        while (queue.isEmpty() || this.getWriting())
-//        {
-//            synchronized (this)
-//            {
-//                if (queue.isEmpty())
-//                    System.out.println("Queue empty.");
-//                else
-//                    System.out.println("Is writing.");
-//                wait();
-//            }
-//        }
-//
-//        //Never, ever read from queue unless there is a large enough number of packets.
-//        while (queue.size() < clumpSize) {
-//            System.out.println("Waiting for queue to get bigger.");
-//            synchronized (this) {
-//                wait();
-//            }
-//        }
-//        setReading(true);
-//
-//        RtpPacket[] rtpPacketArray = new RtpPacket[clumpSize];
-//        //Unload from  overflow
-//
-//        //Read from current queue
-//        String sequenceStr = "";
-//        int lastSequenceNum = 0;
-//        for ( int i = 0; i < clumpSize; ++i)
-//        {
-//            rtpPacketArray[i] = queue.remove(0);
-//            if (lastSequenceNum != 0 && lastSequenceNum > rtpPacketArray[i].getSequenceNumber()) {
-//                System.out.println("There was a seuqence out of ordeR:");
-//                System.out.println("lastSequenceNum: " + lastSequenceNum + " Current Sequence Num:"  +rtpPacketArray[i].getSequenceNumber());
-//
-//            }
-//            lastSequenceNum = rtpPacketArray[i].getSequenceNumber();
-//            sequenceStr += rtpPacketArray[i].getSequenceNumber() + ",";
-//        }
-//
-//        System.out.println("***Sequences***");
-//        System.out.println(sequenceStr);
-//        //print order of rtp packet array.
-//
-//        setReading(false);
-//        //not reading anymore, notify writer that they can write.
-//
-//         System.out.println("Done reading, notifying all threads.");
-//          synchronized (this) {
-//              notify();
-//          }
-//        return rtpPacketArray;
-//    }
-
-    public  byte[] read() throws InterruptedException {
+    public byte[] read() throws InterruptedException {
         //pass in the thread, make it wait.
         System.out.println("Beginning read.");
+        int bufferSize = this.playableAudioBuffer.capacity() - this.playableAudioBuffer.remaining();
 
-
-        while (playableAudioBuffer.remaining() == 0 || this.getWriting())
-        {
-            synchronized (this)
-            {
-                if (queue.isEmpty())
-                    System.out.println("Queue empty.");
-                else
-                    System.out.println("Is writing.");
-                wait();
+        //not enough packets, return null
+        if (bufferSize < (this.clumpSize * this.payloadSize)) {
+            return null;
+        } else {
+            try {
+                this.lock.lock();
+                byte[] playableAudioBytes = new byte[this.payloadSize];
+                this.playableAudioBuffer.get(playableAudioBytes, 0, playableAudioBytes.length);
+                this.lock.unlock();
+                System.out.println("Successfully unlocked the lock!");
+                return playableAudioBytes;
+            } finally {
+                this.lock.unlock();
+                System.out.println("exception occurred and finally clause was caught.");
             }
         }
-
-        //Never, ever read from queue unless there is a large enough number of packets.
-        //For the palyable audio buffer logic, this may not be neccessary
-//        while (playableAudioBuffer.position() < clumpSize) {
-//            System.out.println("Waiting for queue to get bigger.");
-//            synchronized (this) {
-//                wait();
-//            }
-//        }
-        setReading(true);
-
-        byte[] bytesFromBuffer = new byte[this.payloadSize];
-
-        this.playableAudioBuffer.get(bytesFromBuffer, 0, this.payloadSize);
-
-        //print order of rtp packet array.
-
-        setReading(false);
-        //not reading anymore, notify writer that they can write.
-
-         System.out.println("Done reading, notifying all threads.");
-          synchronized (this) {
-              notify();
-          }
-        return bytesFromBuffer;
     }
+
+
     public void write(RtpPacket rtpPacket) throws InterruptedException {
         //For simple, if it's out of order, discard.
         //block reader from reading
-        if (this.getReading()) {
-        }
-        while (this.getReading()) {
 
-
-            System.out.println("Writer is waiting...");
-            synchronized (this) {
-                wait();
-            }
-            System.out.println("Writer is done waiting..");
-
-            //overflow.add(rtpPacket);
-        }
-        setWriting(true);
-
-        RtpPacket curPacket;
-
-        if (!queue.isEmpty() && queue.size() < bufSize)
+        if (queue.size() < this.clumpSize)
         {
-             curPacket = queue.get(queue.size() - 1);
-
-
-            //Packet exceeded time delay so discard it
-            /*
-             if ((int) (System.currentTimeMillis()  - rtpPacket.getTimeStamp()) > curPacket.getTimeStamp() + discardTime) {
-
-                    System.out.println("Packet was discard by queue: " + rtpPacket.getSequenceNumber());
-                    return;
-             }
-            */
-            if (rtpPacket.getSequenceNumber() < curPacket.getSequenceNumber())
-            {
-                System.out.println("Packet is out of order, discarding the packet: " + rtpPacket.getSequenceNumber() + " < " + curPacket.getSequenceNumber());
-                return ;
-            }
-             //add packet to queue
-
-        }
-        queue.add(rtpPacket);
-
-        //whenever the quee reaches a clump size, reorder the packets and empty them into the orderedpackets queue.
-        if (rtpPacket.getSequenceNumber() % clumpSize == 0 && queue.size() >= clumpSize) //reorder packets in queue
-        {
-            while(queue.size() >= clumpSize) {
-                RtpPacket[] tempPackets = (RtpPacket[]) queue.subList(0, clumpSize).toArray();
-                byte[][] playableAudioBytes = this.packetOrganizer.reorder(tempPackets, clumpSize);
-
-                //place the audio bytes into the playable audio buffer.
-                for (int i = 0; i < playableAudioBytes.length; ++i) {
-                    queue.remove(i); //remove bytes from queue
-                    this.playableAudioBuffer.put(playableAudioBytes[i]);
+            queue.add(rtpPacket);
+            //insert into queue
+        } else {
+            try {
+                //remove packets from queue
+                RtpPacket[] unorderedPackets = new RtpPacket[this.clumpSize];
+                for (int i = 0; i < this.clumpSize; ++i) {
+                    unorderedPackets[i] = queue.remove(0);
                 }
+
+                //block
+                this.lock.lock();
+                //reorder packets
+                byte[][] reorderedBytePackets = this.packetOrganizer.reorder(unorderedPackets, this.clumpSize);
+
+                //if full, discard or allocate new buffer
+                if (this.playableAudioBuffer.remaining() == 0) {
+                    System.out.println("Aduio buffer full. releasing lock and returning");
+                    this.lock.unlock();
+                    return;
+                }
+                //not full, place into byte buffer
+                for (int i = 0; i < reorderedBytePackets.length; ++i) {
+                    this.playableAudioBuffer.put(reorderedBytePackets[i]);
+                }
+            } finally {
+                //unblock
+                this.lock.unlock();
+
             }
         }
-
-    this.setWriting(false);
-
-//    //wait till at least half full before releases
-        //reamining can be used to figure how much is remaining
-//    if (playableAudioBuffer.position() > playableAudioBuffer.capacity() / 2)) {
-//        setFull(true);
-//        System.out.println("Queue is full. Notifying all readers.");
-        synchronized (this) {
-            notify();
-        }
-//    }
-    //Done writing, allow reader to read
-
     }
+
 
     private synchronized  void setFull(boolean isFull) { this.isFull = isFull; }
     private synchronized  void setWriting(boolean isWriting) { this.isWriting = isWriting; }
