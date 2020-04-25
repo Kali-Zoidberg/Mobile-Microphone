@@ -5,6 +5,7 @@ import audio.AudioFunctions;
 import rtp.RtpPacket;
 import threads.AudioPlayThread;
 
+import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -32,7 +33,7 @@ public class SimpleJitterBuffer {
         this.bufSize = bufSize;
         this.overflow = new LinkedList<>();
         this.queue = new ArrayList<>();
-        this.playableAudioBuffer = ByteBuffer.allocate(bufSize * payloadSize);
+        this.playableAudioBuffer = ByteBuffer.allocate(bufSize * (payloadSize * this.clumpSize));
         this.clumpSize = clumpSize;
         this.payloadSize = payloadSize;
 
@@ -45,6 +46,7 @@ public class SimpleJitterBuffer {
 
         //not enough packets, return null
         if (bufferSize < (this.clumpSize * this.payloadSize)) {
+            System.out.println("bufferSize: " + bufferSize);
             return null;
         } else {
             try {
@@ -57,6 +59,7 @@ public class SimpleJitterBuffer {
             } finally {
                 this.lock.unlock();
                 System.out.println("exception occurred and finally clause was caught.");
+                return null;
             }
         }
     }
@@ -71,6 +74,7 @@ public class SimpleJitterBuffer {
             queue.add(rtpPacket);
             //insert into queue
         } else {
+            byte[][] reorderedBytePackets = null;
             try {
                 //remove packets from queue
                 RtpPacket[] unorderedPackets = new RtpPacket[this.clumpSize];
@@ -81,7 +85,7 @@ public class SimpleJitterBuffer {
                 //block
                 this.lock.lock();
                 //reorder packets
-                byte[][] reorderedBytePackets = this.packetOrganizer.reorder(unorderedPackets, this.clumpSize);
+                reorderedBytePackets = this.packetOrganizer.reorder(unorderedPackets, this.clumpSize);
 
                 //if full, discard or allocate new buffer
                 if (this.playableAudioBuffer.remaining() == 0) {
@@ -89,14 +93,24 @@ public class SimpleJitterBuffer {
                     this.lock.unlock();
                     return;
                 }
+
                 //not full, place into byte buffer
                 for (int i = 0; i < reorderedBytePackets.length; ++i) {
                     this.playableAudioBuffer.put(reorderedBytePackets[i]);
                 }
-            } finally {
+            } catch(BufferOverflowException e) {
+                e.printStackTrace();
+                System.out.println("reorderPackets length: " + reorderedBytePackets.length);
+                System.out.println("remaining: " + this.playableAudioBuffer.remaining());
+                System.out.println("capacity: " + this.playableAudioBuffer.capacity());
+                //Clear buffer if overflow
+                this.playableAudioBuffer.clear();
+
+            }
+            finally {
                 //unblock
                 this.lock.unlock();
-
+                System.out.println("unlocked");
             }
         }
     }

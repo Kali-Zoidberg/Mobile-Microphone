@@ -51,7 +51,7 @@ public class Server extends Thread{
 	private int payloadSize = 512;
 	//play with clump sizes, payload sizes and buffer size.
 	//higher clumpSize is better it appears.
-	private int clumpSize = 128;
+	private int clumpSize = 64;
 	
 
 
