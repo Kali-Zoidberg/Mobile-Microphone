@@ -8,6 +8,7 @@ import helper.ByteConversion;
 import rtp.RtpPacket;
 
 import javax.sound.sampled.*;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Hashtable;
 import java.util.LinkedList;
@@ -25,6 +26,7 @@ public class AudioPlayThread extends Thread {
     private boolean startedPlaying = false;
     private PacketOrganizer packetOrganizer = new PacketOrganizer();
     public SourceDataLine cableInputLine;
+    private FileWriter audioDateFile;
 
     public AudioPlayThread(SourceDataLine dataLine, Server server, AudioFormat format)
     {
@@ -34,7 +36,11 @@ public class AudioPlayThread extends Thread {
         this.dataLine = dataLine;
         this.setServer(server);
         this.setAudioFormat(format);
-
+        try {
+            this.audioDateFile = new FileWriter("audioPlayed data");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         //Attempt to open
         try {
             this.openCableLine();
@@ -72,7 +78,11 @@ public class AudioPlayThread extends Thread {
                     lastRead = System.currentTimeMillis();
                     start = System.currentTimeMillis();
                     this.cableInputLine.write(audioBytes, 0, audioBytes.length);
-
+                    try {
+                        audioDateFile.write(packetOrganizer.byteArrToString(audioBytes));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
 //                    this.playAudioBytes(packets);
                     System.out.println("Delta: " + (System.currentTimeMillis() - start));
 

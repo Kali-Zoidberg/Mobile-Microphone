@@ -309,4 +309,14 @@ public class PacketOrganizer {
 
         }
     }
+    public String byteArrToString(byte[] array)
+    {
+        StringBuffer strBuf = new StringBuffer();
+        for (int i = 0; i < array.length; ++i)
+        {
+            strBuf.append(array[i] + " ");
+        }
+        strBuf.append("\n");
+        return strBuf.toString();
+    }
 }

@@ -38,6 +38,8 @@ public class Server extends Thread{
 	private FileWriter stringFile = null;
 	private BufferedReader clientInputStream;
 	private SimpleJitterBuffer jitterBuffer;
+	public FileWriter myfile;
+
 
 	private Hashtable<String, Socket> clientTable = new Hashtable<String, Socket>();
 	private Hashtable<String, PrintWriter> clientOutputStreams = new Hashtable<String, PrintWriter>();
@@ -75,6 +77,14 @@ public class Server extends Thread{
 			e.printStackTrace();
 		
 		}
+
+
+			try {
+				myfile = new FileWriter("rtpData.txt");
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+
 	}
 	public void run()
     {
@@ -349,22 +359,21 @@ public class Server extends Thread{
 
 	public void processPacket(DatagramPacket packet)
 	{
-
+		PacketOrganizer packetorganizer = new PacketOrganizer();
 		//Construct RTP packet
 		byte[] data = packet.getData();
 		RtpPacket rtpPacket = new RtpPacket(data, data.length);
+		try {
+			myfile.write(packetorganizer.byteArrToString(rtpPacket.getPayload()));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 		//Send rtpPacket to jitter buffer
 		try {
 			jitterBuffer.write(rtpPacket);
 		} catch (InterruptedException | IllegalMonitorStateException e) {
 			if (e instanceof IllegalMonitorStateException) {
 				System.out.println("Illeage state monitor exception. Blocking thread.");
-				try {
-					this.wait();
-					processPacket(packet);
-				} catch (InterruptedException ex) {
-					ex.printStackTrace();
-				}
 
 			}
 

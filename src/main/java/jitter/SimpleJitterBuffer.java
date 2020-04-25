@@ -9,6 +9,7 @@ import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class SimpleJitterBuffer {
@@ -41,25 +42,27 @@ public class SimpleJitterBuffer {
 
     public byte[] read() throws InterruptedException {
         //pass in the thread, make it wait.
+        synchronized (this.playableAudioBuffer) {
+            int bufferSize = this.playableAudioBuffer.capacity() - this.playableAudioBuffer.remaining();
 
-        int bufferSize = this.playableAudioBuffer.capacity() - this.playableAudioBuffer.remaining();
-
-        //not enough packets, return null
-        if (bufferSize < (this.clumpSize * this.payloadSize)) {
-            System.out.println("bufferSize: " + bufferSize);
-            return null;
-        } else {
-            try {
-                this.lock.lock();
-                byte[] playableAudioBytes = new byte[this.payloadSize];
-                this.playableAudioBuffer.get(playableAudioBytes, 0, playableAudioBytes.length);
-                this.lock.unlock();
-                System.out.println("Successfully unlocked the lock!");
-                return playableAudioBytes;
-            } finally {
-                this.lock.unlock();
-                System.out.println("exception occurred and finally clause was caught.");
+            //not enough packets, return null
+            if (bufferSize < (this.clumpSize * this.payloadSize)) {
                 return null;
+            } else {
+
+                byte[] playableAudioBytes = new byte[this.payloadSize];
+                try {
+                    System.out.println("Reader attempting to aquire lock");
+                    this.lock.lock();
+                    this.playableAudioBuffer.get(playableAudioBytes, 0, playableAudioBytes.length);
+                    byte[][] app = {playableAudioBytes};
+                    packetOrganizer.print2DArray(app);
+
+                } finally {
+                    this.lock.unlock();
+                    System.out.println("Successfully unlocked the lock!");
+                    return playableAudioBytes;
+                }
             }
         }
     }
@@ -69,11 +72,10 @@ public class SimpleJitterBuffer {
         //For simple, if it's out of order, discard.
         //block reader from reading
 
-        if (queue.size() < this.clumpSize)
-        {
             queue.add(rtpPacket);
-            //insert into queue
-        } else {
+
+        if (queue.size() >= this.clumpSize)
+        {
             byte[][] reorderedBytePackets = null;
             try {
                 //remove packets from queue
@@ -98,6 +100,8 @@ public class SimpleJitterBuffer {
                 for (int i = 0; i < reorderedBytePackets.length; ++i) {
                     this.playableAudioBuffer.put(reorderedBytePackets[i]);
                 }
+
+
             } catch(BufferOverflowException e) {
                 e.printStackTrace();
                 System.out.println("reorderPackets length: " + reorderedBytePackets.length);
@@ -110,7 +114,7 @@ public class SimpleJitterBuffer {
             finally {
                 //unblock
                 this.lock.unlock();
-                System.out.println("unlocked");
+                System.out.println("Writer has released lock");
             }
         }
     }

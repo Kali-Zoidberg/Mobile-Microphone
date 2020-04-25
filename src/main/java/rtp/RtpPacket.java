@@ -2,6 +2,7 @@ package rtp;
 //class RTPpacket
 
 
+import Network.PacketOrganizer;
 import helper.BitOperation;
 
 public class RtpPacket {
@@ -120,6 +121,7 @@ public class RtpPacket {
 
     public RtpPacket(byte[] packet, int packet_size)
     {
+
         //fill default fields:
         pVersion = 2;
         pPadding = 0;
