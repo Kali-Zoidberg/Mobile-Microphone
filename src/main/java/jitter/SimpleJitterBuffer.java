@@ -5,6 +5,8 @@ import audio.AudioFunctions;
 import rtp.RtpPacket;
 import threads.AudioPlayThread;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -25,7 +27,7 @@ public class SimpleJitterBuffer {
     ReentrantLock lock = new ReentrantLock();
 
     PacketOrganizer packetOrganizer = new PacketOrganizer();
-
+    FileWriter jitterFile;
     private LinkedList<RtpPacket> overflow;
     private ArrayList<RtpPacket> queue;
     private ByteBuffer playableAudioBuffer;
@@ -37,6 +39,12 @@ public class SimpleJitterBuffer {
         this.playableAudioBuffer = ByteBuffer.allocate(bufSize * (payloadSize * this.clumpSize));
         this.clumpSize = clumpSize;
         this.payloadSize = payloadSize;
+        try {
+            this.jitterFile = new FileWriter("Jitterbuffer.txt");
+            this.jitterFile.write("Start");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
     }
 
@@ -87,6 +95,7 @@ public class SimpleJitterBuffer {
                 //block
                 this.lock.lock();
                 //reorder packets
+
                 reorderedBytePackets = this.packetOrganizer.reorder(unorderedPackets, this.clumpSize);
 
                 //if full, discard or allocate new buffer
@@ -95,10 +104,16 @@ public class SimpleJitterBuffer {
                     this.lock.unlock();
                     return;
                 }
-
+                try {
                 //not full, place into byte buffer
                 for (int i = 0; i < reorderedBytePackets.length; ++i) {
+                    this.jitterFile.write(packetOrganizer.byteArrToString(reorderedBytePackets[i]));
+
                     this.playableAudioBuffer.put(reorderedBytePackets[i]);
+                }
+
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
 
 

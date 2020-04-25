@@ -37,7 +37,8 @@ public class AudioPlayThread extends Thread {
         this.setServer(server);
         this.setAudioFormat(format);
         try {
-            this.audioDateFile = new FileWriter("audioPlayed data");
+            this.audioDateFile = new FileWriter("audioPlayed.txt");
+            this.audioDateFile.write("start");
         } catch (IOException e) {
             e.printStackTrace();
         }
