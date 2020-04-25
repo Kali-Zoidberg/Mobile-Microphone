@@ -160,7 +160,7 @@ public class AudioPlayThread extends Thread {
         try {
             testStream = AudioFunctions.createAudioInputStream(filename);
             Hashtable<String, Mixer> audioMixerTable = AudioFunctions.createHashTableOfMixers();
-            Mixer cableinput = audioMixerTable.get("Speakers (Realtek High Definition Audio)");
+            Mixer cableinput = audioMixerTable.get("Headset Earphone (Corsair VOID PRO USB Gaming Headset )");
             this.cableInputLine = AudioFunctions.getLineFromDevice(testStream.getFormat(), cableinput.getMixerInfo());
             System.out.print(testStream.getFormat().toString());
             this.cableInputLine.open();

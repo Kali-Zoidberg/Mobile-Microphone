@@ -40,7 +40,7 @@ public class SimpleJitterBuffer {
 
     public byte[] read() throws InterruptedException {
         //pass in the thread, make it wait.
-        System.out.println("Beginning read.");
+
         int bufferSize = this.playableAudioBuffer.capacity() - this.playableAudioBuffer.remaining();
 
         //not enough packets, return null
