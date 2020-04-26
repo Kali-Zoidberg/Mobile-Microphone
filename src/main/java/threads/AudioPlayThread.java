@@ -54,6 +54,7 @@ public class AudioPlayThread extends Thread {
     public void run()
     {
         byte[] audioBytes = new byte[this.server.getClumpSize() * this.server.getPayloadSize()];
+        int pid = 0;
         while(server.isRunning())
         {
             ByteBuffer audioBuffer = this.server.getJitterBuffer().getReadOnlyDuplicate();
@@ -66,7 +67,7 @@ public class AudioPlayThread extends Thread {
 
                     audioBuffer.get(audioBytes, 0, audioBytes.length);
                     long currentTime = System.nanoTime();
-                    this.playAudioBytes(audioBytes);
+                    this.playAudioBytes(audioBytes, pid++);
                     //cable input line has serious delays and takes hundreds of milliseconds before running again.
 //                    System.out.println("runs every: " + (System.nanoTime() - currentTime));
 
@@ -87,7 +88,7 @@ public class AudioPlayThread extends Thread {
      * @param packets
      * @return
      */
-    public boolean playAudioBytes(byte[] packets)
+    public boolean playAudioBytes(byte[] packets, int pid)
     {
         int len = packets.length;
         byte[][] organizedPackets;
@@ -102,7 +103,7 @@ public class AudioPlayThread extends Thread {
 
             AudioWriter writer = new AudioWriter(packets, this.cableInputLine);
             //probably need to synchronize play order.
-            System.out.println("Time to make new thread: " + (System.nanoTime() - currentTime));
+            System.out.println("Time to make new thread: " + (System.nanoTime() - currentTime) + "\n: " + pid);
             writer.run();
             //Start thread.
            // writer.start();
