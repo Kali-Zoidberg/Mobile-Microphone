@@ -66,10 +66,9 @@ public class AudioPlayThread extends Thread {
 
                     audioBuffer.get(audioBytes, 0, audioBytes.length);
                     long currentTime = System.nanoTime();
-
+                    this.playAudioBytes(audioBytes);
                     //cable input line has serious delays and takes hundreds of milliseconds before running again.
-                    this.cableInputLine.write(audioBytes, 0, audioBytes.length);
-                    System.out.println("runs every: " + (System.nanoTime() - currentTime));
+//                    System.out.println("runs every: " + (System.nanoTime() - currentTime));
 
 //                byte[][] app = {audioBytes};
 //                packetOrganizer.print2DArray(app);
@@ -88,22 +87,22 @@ public class AudioPlayThread extends Thread {
      * @param packets
      * @return
      */
-    public boolean playAudioBytes(RtpPacket[] packets)
+    public boolean playAudioBytes(byte[] packets)
     {
         int len = packets.length;
         byte[][] organizedPackets;
         if (this.cableInputLine != null) {
 
 
-            //interpolate and reorganize packets
-            organizedPackets = this.packetOrganizer.reorder(packets, server.getClumpSize());
-
             //write audio bytes from organizedPackets Array to data line.
 
             //This could lead to out of order depending on queue for threads (blocking needs to be FIFO).
             //Create thread to write packets.
+            long currentTime = System.nanoTime();
 
-            AudioWriter writer = new AudioWriter(organizedPackets, this.cableInputLine);
+            AudioWriter writer = new AudioWriter(packets, this.cableInputLine);
+            //probably need to synchronize play order.
+            System.out.println("Time to make new thread: " + (System.nanoTime() - currentTime));
             writer.run();
             //Start thread.
            // writer.start();

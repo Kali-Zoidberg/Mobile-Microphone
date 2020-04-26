@@ -4,7 +4,7 @@ import javax.sound.sampled.SourceDataLine;
 import audio.AudioFunctions;
 public class AudioWriter extends Thread{
 
-    private byte[][] data;
+    private byte[] data;
     private SourceDataLine dataLine;
 
     /**
@@ -13,7 +13,7 @@ public class AudioWriter extends Thread{
      * @param dataLine The data line to write to
      */
 
-    public AudioWriter(byte[][] data, SourceDataLine dataLine)
+    public AudioWriter(byte[] data, SourceDataLine dataLine)
     {
         this.data = data;
         this.dataLine = dataLine;
@@ -24,14 +24,11 @@ public class AudioWriter extends Thread{
      */
     public void run()
     {
-
-
-        for (int i = 0; i < data.length; ++i)
-            AudioFunctions.writeDataToLine(data[i], dataLine);
+            AudioFunctions.writeDataToLine(data, dataLine);
 
     }
 
-    public byte[][] getData() {
+    public byte[] getData() {
         return data;
     }
 
