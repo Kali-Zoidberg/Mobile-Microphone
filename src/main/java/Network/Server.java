@@ -592,9 +592,9 @@ public class Server extends Thread{
     }
 
 
-
-
-
+	public int getPayloadSize() {
+		return payloadSize;
+	}
 }
 
 

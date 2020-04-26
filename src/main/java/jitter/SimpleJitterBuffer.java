@@ -50,6 +50,8 @@ public class SimpleJitterBuffer {
 
     }
 
+
+
     public byte[] read() throws InterruptedException {
         //pass in the thread, make it wait.
         synchronized (this.playableAudioBuffer) {
@@ -60,19 +62,28 @@ public class SimpleJitterBuffer {
                 return null;
             } else {
 
-                byte[] playableAudioBytes = new byte[this.payloadSize];
+                byte[] playableAudioBytes = null;
                 try {
-                    System.out.println("Reader attempting to aquire lock: " + this.playableAudioBuffer.position());
+//                    System.out.println("Reader attempting to aquire lock: " + this.playableAudioBuffer.position());
                     this.lock.lock();
-                    readOnly = this.playableAudioBuffer.duplicate();
-                    readOnly.get(playableAudioBytes, 0, playableAudioBytes.length);
-//                    this.playableAudioBuffer.position(this.playableAudioBuffer.position() + playableAudioBytes.length);
-                    byte[][] app = {playableAudioBytes};
-                    packetOrganizer.print2DArray(app);
+
+//                    long currentTime = System.nanoTime();
+//                    ByteBuffer copyBuffer = playableAudioBuffer.duplicate();
+//                    System.out.println("duplicate time: " + (System.nanoTime() - currentTime));
+//                    currentTime = System.nanoTime();
+                    this.playableAudioBuffer.flip();
+                    playableAudioBytes = new byte[this.playableAudioBuffer.limit()];
+                    this.playableAudioBuffer.get(playableAudioBytes, 0, playableAudioBytes.length);
+                    this.playableAudioBuffer.clear();
+//                    System.out.println("bulk read time: " + (System.nanoTime() - currentTime));
+
+                    //                    this.playableAudioBuffer.position(this.playableAudioBuffer.position() + playableAudioBytes.length);
+//                    byte[][] app = {playableAudioBytes};
+//                    packetOrganizer.print2DArray(app);
                 } finally {
                     this.lock.unlock();
-                    System.out.println("Successfully unlocked the lock!");
-                    System.out.println("new position: " + this.playableAudioBuffer.position());
+//                    System.out.println("Successfully unlocked the lock!");
+//                    System.out.println("new position: " + this.playableAudioBuffer.position());
 
                     return playableAudioBytes;
                 }
@@ -107,25 +118,21 @@ public class SimpleJitterBuffer {
                 if (this.playableAudioBuffer.remaining() == 0) {
                     System.out.println("Aduio buffer full. releasing lock and returning");
                     this.playableAudioBuffer.position(0);
+
                     this.lock.unlock();
                     return;
                 }
-                try {
                 //not full, place into byte buffer
                 for (int i = 0; i < reorderedBytePackets.length; ++i) {
-                    this.jitterFile.write(packetOrganizer.byteArrToString(reorderedBytePackets[i]));
 
                     this.playableAudioBuffer.put(reorderedBytePackets[i]);
-                    System.out.println("capacity: " + this.playableAudioBuffer.remaining());
-                    System.out.println("position: " + this.playableAudioBuffer.position());
+//                    System.out.println("capacity: " + this.playableAudioBuffer.remaining());
+//                    System.out.println("position: " + this.playableAudioBuffer.position());
 //                    this.playableAudioBuffer.flip();
 //                    this.playableAudioBuffer.position(this.playableAudioBuffer.position() + reorderedBytePackets[i].length);
                 }
 
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-
+            this.playableAudioBuffer.flip();
 
             } catch(BufferOverflowException e) {
                 e.printStackTrace();
@@ -177,5 +184,15 @@ public class SimpleJitterBuffer {
         return bufSize;
     }
 
+    public ByteBuffer getReadOnlyDuplicate() {
+        synchronized (this.playableAudioBuffer) {
+            return this.playableAudioBuffer.asReadOnlyBuffer();
+        }
+    }
 
+    public ByteBuffer getDuplicate() {
+        synchronized (this.playableAudioBuffer) {
+            return this.playableAudioBuffer.duplicate();
+        }
+    }
 }

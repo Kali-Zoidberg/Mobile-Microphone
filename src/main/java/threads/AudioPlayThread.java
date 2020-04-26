@@ -8,8 +8,8 @@ import helper.ByteConversion;
 import rtp.RtpPacket;
 
 import javax.sound.sampled.*;
-import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Hashtable;
 import java.util.LinkedList;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -26,7 +26,6 @@ public class AudioPlayThread extends Thread {
     private boolean startedPlaying = false;
     private PacketOrganizer packetOrganizer = new PacketOrganizer();
     public SourceDataLine cableInputLine;
-    private FileWriter audioDateFile;
 
     public AudioPlayThread(SourceDataLine dataLine, Server server, AudioFormat format)
     {
@@ -36,12 +35,7 @@ public class AudioPlayThread extends Thread {
         this.dataLine = dataLine;
         this.setServer(server);
         this.setAudioFormat(format);
-        try {
-            this.audioDateFile = new FileWriter("audioPlayed.txt");
-//            this.audioDateFile.write("start");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+
         //Attempt to open
         try {
             this.openCableLine();
@@ -59,37 +53,31 @@ public class AudioPlayThread extends Thread {
      */
     public void run()
     {
-        long start = System.currentTimeMillis();
-        long curRead = 0;
-        long lastRead = 0;
-        long end;
+        byte[] audioBytes = new byte[this.server.getClumpSize() * this.server.getPayloadSize()];
         while(server.isRunning())
         {
+            ByteBuffer audioBuffer = this.server.getJitterBuffer().getReadOnlyDuplicate();
+
 
             //Read jitterbuffer
-            byte[] audioBytes;
-            try {
-                audioBytes = this.server.getJitterBuffer().read();
-                if (audioBytes != null) {
-                    curRead = System.currentTimeMillis();
-                    if (lastRead != 0)
-                    {
-                        //System.out.println("Time between Reads: " + (curRead - lastRead));
-                    }
-                    lastRead = System.currentTimeMillis();
-                    start = System.currentTimeMillis();
-                    this.cableInputLine.write(audioBytes, 0, audioBytes.length);
-                    try {
-                        audioDateFile.write(packetOrganizer.byteArrToString(audioBytes));
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-//                    this.playAudioBytes(packets);
-                    //System.out.println("Delta: " + (System.currentTimeMillis() - start));
+            if (audioBuffer.remaining() != audioBuffer.capacity()) {
 
+                if (audioBuffer.position() + audioBytes.length < audioBuffer.limit()) {
+
+                    audioBuffer.get(audioBytes, 0, audioBytes.length);
+                    long currentTime = System.nanoTime();
+
+                    //cable input line has serious delays and takes hundreds of milliseconds before running again.
+                    this.cableInputLine.write(audioBytes, 0, audioBytes.length);
+                    System.out.println("runs every: " + (System.nanoTime() - currentTime));
+
+//                byte[][] app = {audioBytes};
+//                packetOrganizer.print2DArray(app);
+
+                } else {
+//                    System.out.println("rewinding");
+//                    audioBuffer.rewind();
                 }
-            } catch (InterruptedException e) {
-                e.printStackTrace();
             }
 
         }
