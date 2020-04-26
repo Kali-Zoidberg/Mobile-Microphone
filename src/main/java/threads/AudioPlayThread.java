@@ -38,7 +38,7 @@ public class AudioPlayThread extends Thread {
         this.setAudioFormat(format);
         try {
             this.audioDateFile = new FileWriter("audioPlayed.txt");
-            this.audioDateFile.write("start");
+//            this.audioDateFile.write("start");
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -74,7 +74,7 @@ public class AudioPlayThread extends Thread {
                     curRead = System.currentTimeMillis();
                     if (lastRead != 0)
                     {
-                        System.out.println("Time between Reads: " + (curRead - lastRead));
+                        //System.out.println("Time between Reads: " + (curRead - lastRead));
                     }
                     lastRead = System.currentTimeMillis();
                     start = System.currentTimeMillis();
@@ -85,7 +85,7 @@ public class AudioPlayThread extends Thread {
                         e.printStackTrace();
                     }
 //                    this.playAudioBytes(packets);
-                    System.out.println("Delta: " + (System.currentTimeMillis() - start));
+                    //System.out.println("Delta: " + (System.currentTimeMillis() - start));
 
                 }
             } catch (InterruptedException e) {
@@ -171,7 +171,7 @@ public class AudioPlayThread extends Thread {
         try {
             testStream = AudioFunctions.createAudioInputStream(filename);
             Hashtable<String, Mixer> audioMixerTable = AudioFunctions.createHashTableOfMixers();
-            Mixer cableinput = audioMixerTable.get("Headset Earphone (Corsair VOID PRO USB Gaming Headset )");
+            Mixer cableinput = audioMixerTable.get("Speakers (3- Realtek(R) Audio)");
             this.cableInputLine = AudioFunctions.getLineFromDevice(testStream.getFormat(), cableinput.getMixerInfo());
             System.out.print(testStream.getFormat().toString());
             this.cableInputLine.open();

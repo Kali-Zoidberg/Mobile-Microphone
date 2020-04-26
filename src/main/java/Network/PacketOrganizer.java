@@ -4,11 +4,23 @@ import Interpolation.Interpolation;
 import helper.ByteConversion;
 import rtp.RtpPacket;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.*;
 
 public class PacketOrganizer {
 
-    
+    private FileWriter packetOrganizerFile = null;
+
+
+    public void createFile(String fileName) {
+        try {
+            packetOrganizerFile = new FileWriter(fileName);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     /**
      * Reorders an array of MxN in clumpSizes s.t. the array becomes NxM e.g.
      * [0 1 2]	  [0 3 6]
@@ -95,7 +107,7 @@ public class PacketOrganizer {
 
                     short[][] interpolShorts = Interpolation.interpolate(ByteConversion.byteArrayToShortArray(a[i].getPayload(), true), ByteConversion.byteArrayToShortArray(a[i + 1].getPayload(), true), seqDelta - 1);
                     for (int j = 0; j < interpolShorts.length; ++j) {
-                        System.out.println("interpolated");
+                        //System.out.println("interpolated");
                         byte[] interpolBytes = ByteConversion.shortArrayToByteArray(interpolShorts[j], true);
                         clumps.get(firstClumpID).add(interpolBytes);
                         ++numByteArrays;
@@ -104,11 +116,12 @@ public class PacketOrganizer {
 
                 } else if ( seqDelta > 1)
                 {
-                    System.out.println("could not interpolate.");
+                    //System.out.println("could not interpolate.");
                 }
             }
         }
-        System.out.println("a len: " + a.length);
+
+        //System.out.println("a len: " + a.length);
         int lastClumpID = a[a.length - 1].getSequenceNumber() / clumpSize;
         if (clumps.get(lastClumpID) == null)
             clumps.put(lastClumpID, new ArrayList<>());
@@ -117,11 +130,10 @@ public class PacketOrganizer {
         clumps.get(lastClumpID).add(a[a.length - 1].getPayload());
         ++numByteArrays;
 
-        System.out.println("numByte Arrays: " + numByteArrays);
+        //System.out.println("numByte Arrays: " + numByteArrays);
 
         byte[][] orderedBytes = new byte[numByteArrays][];
         int k = 0;
-
 
         //Loop over each clump
         for (Integer i : clumps.keySet())
@@ -130,24 +142,28 @@ public class PacketOrganizer {
             byte[][] subByteArray = new byte[bytes.size()][];
             if (bytes.size() != clumpSize)
             {
-               // System.out.println("****************");
-              //  System.out.println("ERROR CLUMP SIZE: " + bytes.size());
-              //  System.out.println("****************");
+               // //System.out.println("****************");
+              //  //System.out.println("ERROR CLUMP SIZE: " + bytes.size());
+              //  //System.out.println("****************");
             }
             //Store the clump elements in a temporarry array
-            for (int j = 0; j < bytes.size(); ++j)
+            for (int j = 0; j < bytes.size(); ++j) {
                 subByteArray[j] = bytes.get(j);
-           // System.out.println("*******Before shuffle*********");
+
+            }
+           // //System.out.println("*******Before shuffle*********");
           //  print2DArray(subByteArray);
-          //  System.out.println("****************");
+          //  //System.out.println("****************");
             //unshuffle the clumps
             subByteArray = unshuffle(subByteArray);
-          //  System.out.println("********After shuffle********");
+          //  //System.out.println("********After shuffle********");
           //  print2DArray(subByteArray);
-          //  System.out.println("****************");
+          //  //System.out.println("****************");
             //store the clumps in an array
             for (int j = 0; j < subByteArray.length; ++j) {
+
                 orderedBytes[k++] = subByteArray[j];
+
             }
 
         }
@@ -168,7 +184,7 @@ public class PacketOrganizer {
 
                 //Copy subByteArray to ordered bytes
                 for (int j = 0; j < clumpSize; ++j) {
-                    System.out.println("unshuffled at: " + i);
+                    //System.out.println("unshuffled at: " + i);
                     orderedBytes[k++] = subByteArray[j];
                     //flush element
                     subByteArray[j] = null;
@@ -178,7 +194,7 @@ public class PacketOrganizer {
             subByteArray[i % clumpSize] = queue.remove();
 
         }
-            */
+        */
         return orderedBytes;
     }
 
@@ -305,7 +321,7 @@ public class PacketOrganizer {
         {
             for (int j = 0; j < array[i].length; ++j)
                 System.out.print(array[i][j] + " ");
-            System.out.println();
+            //System.out.println();
 
         }
     }

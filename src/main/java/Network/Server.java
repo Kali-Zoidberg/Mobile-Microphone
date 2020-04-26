@@ -40,7 +40,6 @@ public class Server extends Thread{
 	private SimpleJitterBuffer jitterBuffer;
 	public FileWriter myfile;
 
-
 	private Hashtable<String, Socket> clientTable = new Hashtable<String, Socket>();
 	private Hashtable<String, PrintWriter> clientOutputStreams = new Hashtable<String, PrintWriter>();
 	private int bufferSize = 64;
@@ -88,9 +87,9 @@ public class Server extends Thread{
 	}
 	public void run()
     {
-        System.out.println("******************************************");
-        System.out.println("************Network.Server started****************");
-        System.out.println("******************************************");
+        //System.out.println("******************************************");
+        //System.out.println("************Network.Server started****************");
+        //System.out.println("******************************************");
         //AcceptThread acceptClients = new AcceptThread();
         //acceptClients.start();
         try {
@@ -104,7 +103,7 @@ public class Server extends Thread{
                     serverTick(clientSocket, clientOutputStream, clientInputStream);
                 } catch (java.net.SocketException e)
                 {
-                    System.out.println("Network.Client closed connection. Ending server");
+                    //System.out.println("Network.Client closed connection. Ending server");
                     this.closeServer();
                 }
             }
@@ -164,7 +163,7 @@ public class Server extends Thread{
 	
 	public void closeUDPServer()
 	{
-		System.out.println("******Closing UDP socket*******");
+		//System.out.println("******Closing UDP socket*******");
 		dataSocket.close();
 		UDPRunning = false;
 	}
@@ -175,10 +174,10 @@ public class Server extends Thread{
 	
 	public void closeServer()
 	{
-		System.out.println("*********Beginning Close Operations*********");
+		//System.out.println("*********Beginning Close Operations*********");
 
 		try {
-			System.out.println("***********Closing client socket*************");
+			//System.out.println("***********Closing client socket*************");
 			this.closeClientConnection();
 			stringFile.close();
 		} catch (IOException e) {
@@ -187,12 +186,8 @@ public class Server extends Thread{
 		}
 		
 			isRunning = false;
-		System.out.println("Ending server....");
+		//System.out.println("Ending server....");
 	}
-	
-	
-	
-
 
 
 	/**
@@ -226,8 +221,7 @@ public class Server extends Thread{
 	{
 		return true;
 	}
-	
-	
+
 	/**
 	 * Analyze's a command set by a user.
 	 * Valid commands are:
@@ -256,7 +250,7 @@ public class Server extends Thread{
 		{
 			if(verifyUID(subCommand))
 			{
-				System.out.println("Valid uid");
+				//System.out.println("Valid uid");
 				outputStream.println("Valid UID. Accepting client connection.");
 				return true;
 			} else
@@ -310,22 +304,22 @@ public class Server extends Thread{
 			if (!specifications[0].equals("clumpSize")) {
 				if (subCommand.equals("disconnect")) {
 					//reset client stuff
-					System.out.println("Closing client connection.");
+					//System.out.println("Closing client connection.");
 					this.closeClientConnection();
 				}
 
 				if (subCommand.equals("close")) {
 					//closes the server.
-					System.out.println("Closing server.");
+					//System.out.println("Closing server.");
 					this.closeServer();
 				}
 
 				if (subCommand.equals("udp")) {
-					System.out.println("Beginning UDP transition.");
+					//System.out.println("Beginning UDP transition.");
 					try {
 						setupUDP(this.portNumber);
 					} catch (SocketException e) {
-						System.out.println("Could not open socket");
+						//System.out.println("Could not open socket");
 						e.printStackTrace();
 
 					}
@@ -334,7 +328,7 @@ public class Server extends Thread{
 			{
 				if (specifications[0].equals("clumpSize")) {
 					int clumpSize = Integer.parseInt(specifications[1]);
-					System.out.println("Setting clump size to : " + clumpSize);
+					//System.out.println("Setting clump size to : " + clumpSize);
 					this.clumpSize = clumpSize;
 				}
 			}
@@ -360,20 +354,17 @@ public class Server extends Thread{
 	public void processPacket(DatagramPacket packet)
 	{
 		PacketOrganizer packetorganizer = new PacketOrganizer();
+
 		//Construct RTP packet
 		byte[] data = packet.getData();
 		RtpPacket rtpPacket = new RtpPacket(data, data.length);
-		try {
-			myfile.write(packetorganizer.byteArrToString(rtpPacket.getPayload()));
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+
 		//Send rtpPacket to jitter buffer
 		try {
 			jitterBuffer.write(rtpPacket);
 		} catch (InterruptedException | IllegalMonitorStateException e) {
 			if (e instanceof IllegalMonitorStateException) {
-				System.out.println("Illeage state monitor exception. Blocking thread.");
+				//System.out.println("Illeage state monitor exception. Blocking thread.");
 
 			}
 
@@ -448,7 +439,7 @@ public class Server extends Thread{
 							curLine = clientInputStream.readLine();
 					} catch (java.net.SocketException e)
 					{
-						System.out.println("Network.Client reset connection... closing client socket");
+						//System.out.println("Network.Client reset connection... closing client socket");
 
 					}
 					if (curLine != null)
@@ -456,8 +447,8 @@ public class Server extends Thread{
 
 				} catch (IOException e) {
 					// TODO Auto-generated catch block
-					System.out.println("*********Network.Client closed connection. Closing server.***********");
-					System.out.println("Exception Caught" + e.getMessage());
+					//System.out.println("*********Network.Client closed connection. Closing server.***********");
+					//System.out.println("Exception Caught" + e.getMessage());
 					this.closeServer();
 					e.printStackTrace();
 				}
