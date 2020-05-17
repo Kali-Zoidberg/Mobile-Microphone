@@ -329,7 +329,7 @@ public class Main {
 			try {
 				
 				Hashtable<String, Mixer> audioMixerTable = AudioFunctions.createHashTableOfMixers();
-				Mixer cableinput = audioMixerTable.get("Speakers (Realtek High Definition Audio)");
+				Mixer cableinput = audioMixerTable.get("Headset Earphone (Corsair VOID PRO USB Gaming Headset )");
  				cableInputLine = AudioFunctions.getLineFromDevice(testStream.getFormat(), cableinput.getMixerInfo());
  				System.out.println(testStream.getFormat().toString());
  				//cableInputLine = AudioSystem.getSourceDataLine(testStream.getFormat());

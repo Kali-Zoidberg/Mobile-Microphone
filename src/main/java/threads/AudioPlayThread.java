@@ -5,6 +5,7 @@ import Network.PacketOrganizer;
 import Network.Server;
 import audio.AudioFunctions;
 import helper.ByteConversion;
+import jitter.SimpleJitterBuffer;
 import rtp.RtpPacket;
 
 import javax.sound.sampled.*;
@@ -55,31 +56,37 @@ public class AudioPlayThread extends Thread {
     {
         byte[] audioBytes = new byte[this.server.getClumpSize() * this.server.getPayloadSize()];
         int pid = 0;
+        SimpleJitterBuffer serverJitterBuffer = null;
+        int previousDiscardTime = -1;
+        int currentDiscardTime = 0;
+        int currentFillCount = -1;
         while(server.isRunning())
         {
-            ByteBuffer audioBuffer = this.server.getJitterBuffer().getReadOnlyDuplicate();
+            serverJitterBuffer = this.server.getJitterBuffer();
+            ByteBuffer audioBuffer = serverJitterBuffer.getReadOnlyDuplicate();
+            currentDiscardTime = serverJitterBuffer.getDiscardTime();
+                previousDiscardTime = currentDiscardTime;
+                //Read jitterbuffer
+                if (serverJitterBuffer.getCurrentFillCount() > currentFillCount) {
+                    if (audioBuffer.remaining() != audioBuffer.capacity()) {
+                        //Update current fill count
+                        currentFillCount = serverJitterBuffer.getCurrentFillCount();
+                        if (audioBuffer.position() + audioBytes.length < audioBuffer.limit()) {
 
+                            audioBuffer.get(audioBytes, 0, audioBytes.length);
+                            long currentTime = System.nanoTime();
+                            this.playAudioBytes(audioBytes, pid++);
+                            //                    System.out.println("runs every: " + (System.nanoTime() - currentTime));
 
-            //Read jitterbuffer
-            if (audioBuffer.remaining() != audioBuffer.capacity()) {
+                            //                byte[][] app = {audioBytes};
+                            //                packetOrganizer.print2DArray(app);
 
-                if (audioBuffer.position() + audioBytes.length < audioBuffer.limit()) {
-
-                    audioBuffer.get(audioBytes, 0, audioBytes.length);
-                    long currentTime = System.nanoTime();
-                    this.playAudioBytes(audioBytes, pid++);
-                    //cable input line has serious delays and takes hundreds of milliseconds before running again.
-//                    System.out.println("runs every: " + (System.nanoTime() - currentTime));
-
-//                byte[][] app = {audioBytes};
-//                packetOrganizer.print2DArray(app);
-
-                } else {
-//                    System.out.println("rewinding");
-//                    audioBuffer.rewind();
+                        } else {
+                            //                    System.out.println("rewinding");
+                            //                    audioBuffer.rewind();
+                        }
+                    }
                 }
-            }
-
         }
     }
 
@@ -159,7 +166,7 @@ public class AudioPlayThread extends Thread {
         try {
             testStream = AudioFunctions.createAudioInputStream(filename);
             Hashtable<String, Mixer> audioMixerTable = AudioFunctions.createHashTableOfMixers();
-            Mixer cableinput = audioMixerTable.get("Speakers (3- Realtek(R) Audio)");
+            Mixer cableinput = audioMixerTable.get("Headset Earphone (Corsair VOID PRO USB Gaming Headset )");
             this.cableInputLine = AudioFunctions.getLineFromDevice(testStream.getFormat(), cableinput.getMixerInfo());
             System.out.print(testStream.getFormat().toString());
             this.cableInputLine.open();

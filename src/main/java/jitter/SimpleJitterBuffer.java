@@ -24,6 +24,7 @@ public class SimpleJitterBuffer {
     private int bufSize = 100;
     private int payloadSize;
     private int clumpSize = 4;
+    private int currentFillCount = 0;
     ReentrantLock lock = new ReentrantLock();
 
     PacketOrganizer packetOrganizer = new PacketOrganizer();
@@ -34,10 +35,12 @@ public class SimpleJitterBuffer {
     private ByteBuffer readOnly;
     public SimpleJitterBuffer(int discardTime, int bufSize, int clumpSize, int payloadSize) {
         packetOrganizer.createFile("PacketOrganizer.txt");
+        this.currentFillCount = -1;
         this.discardTime = discardTime;
         this.bufSize = bufSize;
         this.overflow = new LinkedList<>();
         this.queue = new ArrayList<>();
+
         this.playableAudioBuffer = ByteBuffer.allocate(bufSize * (payloadSize * this.clumpSize));
         this.clumpSize = clumpSize;
         this.payloadSize = payloadSize;
@@ -96,7 +99,7 @@ public class SimpleJitterBuffer {
         //For simple, if it's out of order, discard.
         //block reader from reading
 
-            queue.add(rtpPacket);
+        queue.add(rtpPacket);
 
         if (queue.size() >= this.clumpSize)
         {
@@ -115,11 +118,11 @@ public class SimpleJitterBuffer {
                 reorderedBytePackets = this.packetOrganizer.reorder(unorderedPackets, this.clumpSize);
 
                 //if full, discard or allocate new buffer
-                if (this.playableAudioBuffer.remaining() == 0) {
+                if (this.playableAudioBuffer.remaining() < (this.payloadSize * this.clumpSize)) {
                     System.out.println("Aduio buffer full. releasing lock and returning");
                     this.playableAudioBuffer.position(0);
-
-                    this.lock.unlock();
+                    this.currentFillCount += 1;
+//                    this.lock.unlock();
                     return;
                 }
                 //not full, place into byte buffer
@@ -146,6 +149,7 @@ public class SimpleJitterBuffer {
             finally {
                 //unblock
                 this.lock.unlock();
+                System.out.println("Remaining " + this.playableAudioBuffer.remaining());
                 System.out.println("Writer has released lock");
             }
         }
@@ -162,6 +166,10 @@ public class SimpleJitterBuffer {
     private synchronized boolean getReading()
     {
         return isReading;
+    }
+
+    public int getCurrentFillCount() {
+        return currentFillCount;
     }
 
     private synchronized boolean getWriting()
@@ -182,6 +190,10 @@ public class SimpleJitterBuffer {
 
     public int getBufSize() {
         return bufSize;
+    }
+
+    public FileWriter getJitterFile() {
+        return jitterFile;
     }
 
     public ByteBuffer getReadOnlyDuplicate() {
