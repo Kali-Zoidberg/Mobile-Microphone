@@ -67,7 +67,7 @@ public class AudioPlayThread extends Thread {
             currentDiscardTime = serverJitterBuffer.getDiscardTime();
                 previousDiscardTime = currentDiscardTime;
                 //Read jitterbuffer
-                if (serverJitterBuffer.getCurrentFillCount() > currentFillCount) {
+                if (true || serverJitterBuffer.getCurrentFillCount() > currentFillCount) {
                     if (audioBuffer.remaining() != audioBuffer.capacity()) {
                         //Update current fill count
                         currentFillCount = serverJitterBuffer.getCurrentFillCount();
@@ -76,6 +76,7 @@ public class AudioPlayThread extends Thread {
                             audioBuffer.get(audioBytes, 0, audioBytes.length);
                             long currentTime = System.nanoTime();
                             this.playAudioBytes(audioBytes, pid++);
+                            serverJitterBuffer.getByteBuffer().clear();
                             //                    System.out.println("runs every: " + (System.nanoTime() - currentTime));
 
                             //                byte[][] app = {audioBytes};

@@ -133,18 +133,18 @@ public class SimpleJitterBuffer {
 //                    this.lock.unlock();
                     return;
                 }
-                
-                this.capacity += this.playableAudioBuffer.capacity() + ",";
-                this.position += "," + this.playableAudioBuffer.position() + ",";
-                this.remaining += "," + this.playableAudioBuffer.remaining() + ",";
-                
+//
+//                this.capacity += this.playableAudioBuffer.capacity() + ",";
+//                this.position += "," + this.playableAudioBuffer.position() + ",";
+//                this.remaining += "," + this.playableAudioBuffer.remaining() + ",";
+//
                 //not full, place into byte buffer
                 for (int i = 0; i < reorderedBytePackets.length; ++i) {
 
                     this.playableAudioBuffer.put(reorderedBytePackets[i]);
                 }
                 
-            this.actions += "f,";
+//            this.actions += "f,";
 
             this.playableAudioBuffer.flip();
 
@@ -229,6 +229,10 @@ public class SimpleJitterBuffer {
 
     public String getCapacity() {
         return capacity;
+    }
+
+    public ByteBuffer getByteBuffer() {
+        return playableAudioBuffer;
     }
 
     public String getActions() {
