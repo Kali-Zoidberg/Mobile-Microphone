@@ -90,16 +90,7 @@ public class Main {
 
 		} catch (NullPointerException e) {
 
-			try {
-
-				server.getJitterBuffer().getJitterFile().write(server.getJitterBuffer().getCapacity());
-				server.getJitterBuffer().getJitterFile().write(server.getJitterBuffer().getRemaining());
-				server.getJitterBuffer().getJitterFile().write(server.getJitterBuffer().getPosition());
-				server.getJitterBuffer().getJitterFile().write(server.getJitterBuffer().getActions());
-
-			} catch (IOException ioException) {
-				ioException.printStackTrace();
-			}
+		
 
 		}
 		//PacketDealer.initializer(port);

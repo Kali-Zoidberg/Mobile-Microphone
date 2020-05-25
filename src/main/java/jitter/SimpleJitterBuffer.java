@@ -66,24 +66,25 @@ public class SimpleJitterBuffer {
     public byte[] read() throws InterruptedException {
         //pass in the thread, make it wait.
         synchronized (this.playableAudioBuffer) {
-            int bufferSize = this.playableAudioBuffer.capacity() - this.playableAudioBuffer.remaining();
+            int bufferSize = this.playableAudioBuffer.position();
 
             //not enough packets, return null
             if (bufferSize < (this.clumpSize * this.payloadSize)) {
                 return null;
             } else {
 
-                byte[] playableAudioBytes = null;
+                byte[] playableAudioBytes = new byte[bufferSize];
                 try {
 //                    System.out.println("Reader attempting to aquire lock: " + this.playableAudioBuffer.position());
                     this.lock.lock();
 
-//                    long currentTime = System.nanoTime();
+                    long currentTime = System.nanoTime();
 //                    ByteBuffer copyBuffer = playableAudioBuffer.duplicate();
 //                    System.out.println("duplicate time: " + (System.nanoTime() - currentTime));
 //                    currentTime = System.nanoTime();
+
                     this.playableAudioBuffer.flip();
-                    playableAudioBytes = new byte[this.playableAudioBuffer.limit()];
+
                     this.playableAudioBuffer.get(playableAudioBytes, 0, playableAudioBytes.length);
                     this.playableAudioBuffer.clear();
 //                    System.out.println("bulk read time: " + (System.nanoTime() - currentTime));
@@ -133,20 +134,15 @@ public class SimpleJitterBuffer {
 //                    this.lock.unlock();
                     return;
                 }
-//
-//                this.capacity += this.playableAudioBuffer.capacity() + ",";
-//                this.position += "," + this.playableAudioBuffer.position() + ",";
-//                this.remaining += "," + this.playableAudioBuffer.remaining() + ",";
-//
+
                 //not full, place into byte buffer
                 for (int i = 0; i < reorderedBytePackets.length; ++i) {
 
                     this.playableAudioBuffer.put(reorderedBytePackets[i]);
                 }
-                
-//            this.actions += "f,";
 
-            this.playableAudioBuffer.flip();
+
+//            this.playableAudioBuffer.flip();
 
             } catch(BufferOverflowException e) {
                 e.printStackTrace();
@@ -157,8 +153,6 @@ public class SimpleJitterBuffer {
             finally {
                 //unblock
                 this.lock.unlock();
-                System.out.println("Remaining " + this.playableAudioBuffer.remaining());
-                System.out.println("Writer has released lock");
             }
         }
         

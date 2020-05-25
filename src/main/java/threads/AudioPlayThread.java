@@ -54,40 +54,33 @@ public class AudioPlayThread extends Thread {
      */
     public void run()
     {
-        byte[] audioBytes = new byte[this.server.getClumpSize() * this.server.getPayloadSize()];
+        //audioBytes needs to be the same size as the jitter buffer
+        //Some data is still lost due to the audio bytes size.
+        byte[] audioBytes = new byte[this.server.getClumpSize() * this.server.getPayloadSize() * 12];//new byte[2097152];
         int pid = 0;
         SimpleJitterBuffer serverJitterBuffer = null;
         int previousDiscardTime = -1;
         int currentDiscardTime = 0;
         int currentFillCount = -1;
+        int posBeforeFlip = 0;
         while(server.isRunning())
         {
             serverJitterBuffer = this.server.getJitterBuffer();
             ByteBuffer audioBuffer = serverJitterBuffer.getReadOnlyDuplicate();
+
             currentDiscardTime = serverJitterBuffer.getDiscardTime();
-                previousDiscardTime = currentDiscardTime;
-                //Read jitterbuffer
-                if (true || serverJitterBuffer.getCurrentFillCount() > currentFillCount) {
-                    if (audioBuffer.remaining() != audioBuffer.capacity()) {
-                        //Update current fill count
-                        currentFillCount = serverJitterBuffer.getCurrentFillCount();
-                        if (audioBuffer.position() + audioBytes.length < audioBuffer.limit()) {
+            previousDiscardTime = currentDiscardTime;
 
-                            audioBuffer.get(audioBytes, 0, audioBytes.length);
-                            long currentTime = System.nanoTime();
-                            this.playAudioBytes(audioBytes, pid++);
-                            serverJitterBuffer.getByteBuffer().clear();
-                            //                    System.out.println("runs every: " + (System.nanoTime() - currentTime));
+            //Read jitterbuffer
 
-                            //                byte[][] app = {audioBytes};
-                            //                packetOrganizer.print2DArray(app);
+            try {
+                audioBytes = serverJitterBuffer.read();
+                if (audioBytes != null && audioBytes.length > 0)
+                    this.playAudioBytes(audioBytes, pid++);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
 
-                        } else {
-                            //                    System.out.println("rewinding");
-                            //                    audioBuffer.rewind();
-                        }
-                    }
-                }
         }
     }
 
@@ -111,7 +104,7 @@ public class AudioPlayThread extends Thread {
 
             AudioWriter writer = new AudioWriter(packets, this.cableInputLine);
             //probably need to synchronize play order.
-            System.out.println("Time to make new thread: " + (System.nanoTime() - currentTime) + "\n: " + pid);
+//            System.out.println("Time to make new thread: " + (System.nanoTime() - currentTime) + "\n: " + pid);
             writer.run();
             //Start thread.
            // writer.start();
