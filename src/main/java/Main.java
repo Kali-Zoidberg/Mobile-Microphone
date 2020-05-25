@@ -33,7 +33,9 @@ public class Main {
 
 	public static void main (String args[])
 	{
+
 		startServer(Integer.parseInt(port));
+
 		//Testers tester = new Testers();
 		//tester.main();
 
@@ -80,9 +82,26 @@ public class Main {
 	}
 
 	public static void startServer(int port) {
-
 		Server server = new Server(port);
-		server.start();
+
+		try {
+
+			server.start();
+
+		} catch (NullPointerException e) {
+
+			try {
+
+				server.getJitterBuffer().getJitterFile().write(server.getJitterBuffer().getCapacity());
+				server.getJitterBuffer().getJitterFile().write(server.getJitterBuffer().getRemaining());
+				server.getJitterBuffer().getJitterFile().write(server.getJitterBuffer().getPosition());
+				server.getJitterBuffer().getJitterFile().write(server.getJitterBuffer().getActions());
+
+			} catch (IOException ioException) {
+				ioException.printStackTrace();
+			}
+
+		}
 		//PacketDealer.initializer(port);
 	}
 

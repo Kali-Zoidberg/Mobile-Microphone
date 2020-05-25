@@ -18,13 +18,16 @@ public class SimpleJitterBuffer {
 
     //Max amount of wiggle room before discard a packet.
     private int discardTime = 400;
-    private Boolean isReading = new Boolean(false);
-    private Boolean isFull = new Boolean(false);;
-    private Boolean isWriting = new Boolean(false);;
+
     private int bufSize = 100;
     private int payloadSize;
     private int clumpSize = 4;
     private int currentFillCount = 0;
+    
+    private String position = "";
+    private String remaining = "";
+    private String capacity = "";
+    private String actions = "";
     ReentrantLock lock = new ReentrantLock();
 
     PacketOrganizer packetOrganizer = new PacketOrganizer();
@@ -33,6 +36,11 @@ public class SimpleJitterBuffer {
     private ArrayList<RtpPacket> queue;
     private ByteBuffer playableAudioBuffer;
     private ByteBuffer readOnly;
+    private int currentIter = 0;
+    private boolean isReading;
+    private boolean isWriting;
+    private boolean isFull;
+
     public SimpleJitterBuffer(int discardTime, int bufSize, int clumpSize, int payloadSize) {
         packetOrganizer.createFile("PacketOrganizer.txt");
         this.currentFillCount = -1;
@@ -125,23 +133,23 @@ public class SimpleJitterBuffer {
 //                    this.lock.unlock();
                     return;
                 }
+                
+                this.capacity += this.playableAudioBuffer.capacity() + ",";
+                this.position += "," + this.playableAudioBuffer.position() + ",";
+                this.remaining += "," + this.playableAudioBuffer.remaining() + ",";
+                
                 //not full, place into byte buffer
                 for (int i = 0; i < reorderedBytePackets.length; ++i) {
 
                     this.playableAudioBuffer.put(reorderedBytePackets[i]);
-//                    System.out.println("capacity: " + this.playableAudioBuffer.remaining());
-//                    System.out.println("position: " + this.playableAudioBuffer.position());
-//                    this.playableAudioBuffer.flip();
-//                    this.playableAudioBuffer.position(this.playableAudioBuffer.position() + reorderedBytePackets[i].length);
                 }
+                
+            this.actions += "f,";
 
             this.playableAudioBuffer.flip();
 
             } catch(BufferOverflowException e) {
                 e.printStackTrace();
-                System.out.println("reorderPackets length: " + reorderedBytePackets.length);
-                System.out.println("remaining: " + this.playableAudioBuffer.remaining());
-                System.out.println("capacity: " + this.playableAudioBuffer.capacity());
                 //Clear buffer if overflow
                 this.playableAudioBuffer.clear();
 
@@ -153,6 +161,9 @@ public class SimpleJitterBuffer {
                 System.out.println("Writer has released lock");
             }
         }
+        
+        ++currentIter;
+        
     }
 
 
@@ -206,5 +217,21 @@ public class SimpleJitterBuffer {
         synchronized (this.playableAudioBuffer) {
             return this.playableAudioBuffer.duplicate();
         }
+    }
+
+    public String getPosition() {
+        return position;
+    }
+
+    public String getRemaining() {
+        return remaining;
+    }
+
+    public String getCapacity() {
+        return capacity;
+    }
+
+    public String getActions() {
+        return actions;
     }
 }
