@@ -63,14 +63,12 @@ public class RtpPacket {
         payload = new byte[payload_size];
 
         //fill payload array of byte from data (given in parameter of the constructor)
-        //......
         for (int i = 0; i < payload_size; ++i)
         {
             payload[i] = data[i];
             //set the packet data.
             packet[i + HEADER_SIZE] = data[i];
         }
-        // ! Do not forget to uncomment method printheader() below !
 
     }
 

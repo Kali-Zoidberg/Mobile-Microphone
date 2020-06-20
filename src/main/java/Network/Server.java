@@ -39,6 +39,7 @@ public class Server extends Thread{
 	private BufferedReader clientInputStream;
 	private SimpleJitterBuffer jitterBuffer;
 	public FileWriter myfile;
+	private int totalPacketDataReceived = 0;
 
 	private Hashtable<String, Socket> clientTable = new Hashtable<String, Socket>();
 	private Hashtable<String, PrintWriter> clientOutputStreams = new Hashtable<String, PrintWriter>();
@@ -49,10 +50,10 @@ public class Server extends Thread{
 	private long timeSinceLastMessage;
 	private long timeSinceLastPacket;
 	private long clientPing = 0;
-	private int payloadSize = 512;
+	private int payloadSize = 812;
 	//play with clump sizes, payload sizes and buffer size.
 	//higher clumpSize is better it appears.
-	private int clumpSize = 64;
+	private int clumpSize = 16;
 	
 
 
@@ -76,15 +77,13 @@ public class Server extends Thread{
 			e.printStackTrace();
 		
 		}
-
-
 			try {
 				myfile = new FileWriter("rtpData.txt");
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
-
 	}
+
 	public void run()
     {
         //System.out.println("******************************************");
@@ -94,6 +93,7 @@ public class Server extends Thread{
         //acceptClients.start();
         try {
             clientSocket = serverSocket.accept();
+            System.out.println("Client connected.");
             clientOutputStream = new PrintWriter(clientSocket.getOutputStream(), true);
             clientInputStream = new BufferedReader( new InputStreamReader(clientSocket.getInputStream()));
 
@@ -347,18 +347,22 @@ public class Server extends Thread{
 		dataSocket = new DatagramSocket(port);
 		UDPRunning = true;
 	}
-	
 
 
-
+	/**
+	 * Process datagram packet and write to jitter buffer.
+	 * @param packet
+	 */
 	public void processPacket(DatagramPacket packet)
 	{
 		PacketOrganizer packetorganizer = new PacketOrganizer();
 
 		//Construct RTP packet
 		byte[] data = packet.getData();
-		RtpPacket rtpPacket = new RtpPacket(data, data.length);
 
+		RtpPacket rtpPacket = new RtpPacket(data, data.length);
+		this.totalPacketDataReceived += rtpPacket.getPayloadLength();
+//		System.out.println("Total packet length: " + this.totalPacketDataReceived);
 		//Send rtpPacket to jitter buffer
 		try {
 			jitterBuffer.write(rtpPacket);
@@ -429,8 +433,9 @@ public class Server extends Thread{
 						//Anaylze UDP datagrams
 						if(UDPRunning)
 						{
-							//TODO
-							byte buf[] = new byte[824];
+
+							byte buf[] = new byte[payloadSize + 12];
+
 							DatagramPacket somePacket = new DatagramPacket(buf, buf.length);
 							dataSocket.receive(somePacket);
 

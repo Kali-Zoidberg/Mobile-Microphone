@@ -116,7 +116,7 @@ public class PacketOrganizer {
 
                 } else if ( seqDelta > 1)
                 {
-                    //System.out.println("could not interpolate.");
+                    System.out.println("could not interpolate.");
                 }
             }
         }
